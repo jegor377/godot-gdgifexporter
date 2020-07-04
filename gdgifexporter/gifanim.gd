@@ -123,9 +123,7 @@ func gif_partition(image: PoolByteArray, left: int, right: int, elt: int, pivot_
 	gif_swap_pixels(image, pivot_index, right - 1)
 	var store_index: int = left
 	var split: bool = false
-	var ii: int = left
-	while ii < right - 1:
-		ii += 1
+	for ii in range(left, right - 1):
 		var array_val = image[ii * 4 + elt]
 		if array_val < pivot_value:
 			gif_swap_pixels(image, ii, store_index)
@@ -172,9 +170,7 @@ func gif_split_palette(image: PoolByteArray, num_pixels: int, first_elt: int, la
 				var r: int = 255
 				var g: int = 255
 				var b: int = 255
-				var ii: int = 0
-				while ii < num_pixels:
-					ii += 1
+				for ii in range(0, num_pixels):
 					r = min(r, image[ii * 4])
 					g = min(g, image[ii * 4 + 1])
 					b = min(g, image[ii * 4 + 2])
@@ -191,9 +187,7 @@ func gif_split_palette(image: PoolByteArray, num_pixels: int, first_elt: int, la
 				var r: int = 0
 				var g: int = 0
 				var b: int = 0
-				var ii: int = 0
-				while ii < num_pixels:
-					ii += 1
+				for ii in range(0, num_pixels):
 					r = max(r, image[ii * 4])
 					g = max(g, image[ii * 4 + 1])
 					b = max(b, image[ii * 4 + 2])
@@ -209,9 +203,7 @@ func gif_split_palette(image: PoolByteArray, num_pixels: int, first_elt: int, la
 		var r: int = 0
 		var g: int = 0
 		var b: int = 0
-		var ii: int = 0
-		while ii < num_pixels:
-			ii += 1
+		for ii in range(0, num_pixels):
 			r += image[ii * 4]
 			g += image[ii * 4 + 1]
 			b += image[ii * 4 + 2]
@@ -238,9 +230,7 @@ func gif_split_palette(image: PoolByteArray, num_pixels: int, first_elt: int, la
 	var max_r: int = 0
 	var max_g: int = 0
 	var max_b: int = 0
-	var ii: int = 0
-	while ii < num_pixels:
-		ii += 1
+	for ii in range(0, num_pixels):
 		var r = image[ii * 4]
 		var g = image[ii * 4 + 1]
 		var b = image[ii * 4 + 2]
@@ -275,4 +265,205 @@ func gif_split_palette(image: PoolByteArray, num_pixels: int, first_elt: int, la
 	pal.tree_split[tree_node] = image[sub_pixels_a * 4 + split_com]
 	
 	gif_split_palette(image, sub_pixels_a, first_elt, split_elt, split_elt - split_dist, split_dist / 2, tree_node * 2, build_for_dither, pal)
-	#gif_split_palette(image + sub_pixels_a * 4)
+	
+	# offsetted_image is needed because in the original file, the image pointer was offsetted by specified amount.
+	var offsetted_image: PoolByteArray = image.subarray(sub_pixels_a * 4, -1)
+	gif_split_palette(offsetted_image, sub_pixels_b, split_elt, last_elt, split_elt + split_dist, split_dist / 2, tree_node * 2 + 1, build_for_dither, pal)
+
+# Finds all pixels that have changed from the previous image and
+# moves them to the fromt of the buffer.
+# This allows us to build a palette optimized for the colors of the
+# changed pixels only.
+# -----------------------------------------------------------------
+func gif_pick_changed_pixels(last_frame: PoolByteArray, frame: PoolByteArray, num_pixels: int) -> int:
+	var num_changed: int = 0
+	var write_iter: PoolByteArray = frame
+	var curr_byte_id: int = 0
+	var write_curr_byte_id: int = 0
+	
+	for ii in range(0, num_pixels):
+		if (last_frame[curr_byte_id] != frame[curr_byte_id]) or (last_frame[curr_byte_id + 1] != frame[curr_byte_id + 1]) or (last_frame[curr_byte_id + 2] != frame[curr_byte_id + 2]):
+			write_iter[write_curr_byte_id] = frame[curr_byte_id]
+			write_iter[write_curr_byte_id + 1] = frame[curr_byte_id + 1]
+			write_iter[write_curr_byte_id + 2] = frame[curr_byte_id + 2]
+			num_changed += 1
+			write_curr_byte_id += 4
+		curr_byte_id += 4
+	
+	return num_changed
+
+# Creates a palette by placing all the image pixels in a
+# k-d tree and then averaging the blocks at the bottom.
+# This is known as the "modified median split" technique
+# ------------------------------------------------------
+func gif_make_palette(last_frame: PoolByteArray, next_frame: PoolByteArray, width: int, height: int, bit_depth: int, build_for_dither: bool, p_pal: GifPallete) -> void:
+	p_pal.bit_depth = bit_depth
+	
+	# SplitPalette is destructive (it sorts the pixels by color) so
+	# we must create a copy of the image for it to destroy
+	# --------------------------------------------------------------
+	var destroyable_image: PoolByteArray = next_frame
+	
+	var num_pixels: int = width * height
+	if not last_frame.empty():
+		num_pixels = gif_pick_changed_pixels(last_frame, destroyable_image, num_pixels)
+	
+	var last_elt: int = 1 << bit_depth
+	var split_elt: int = last_elt / 2
+	var split_dist: int = split_elt / 2
+	
+	gif_split_palette(destroyable_image, num_pixels, 1, last_elt, split_elt, split_dist, 1, build_for_dither, p_pal)
+	
+	# add the bottom node for the transparency index
+	# ----------------------------------------------
+	p_pal.tree_split[1 << (bit_depth - 1)] = 0
+	p_pal.tree_split_elt[1 << (bit_depth - 1)] = 0
+	p_pal.r[0] = 0
+	p_pal.g[0] = 0
+	p_pal.b[0] = 0
+
+# Implements Floyd-Steinberg dithering, writes palette value to alpha
+# -------------------------------------------------------------------
+func gif_dither_image(last_frame: PoolByteArray, next_frame: PoolByteArray, out_frame: PoolByteArray, width: int, height: int, p_pal: GifPallete) -> void:
+	var num_pixels = width * height
+	
+	# quantPixels initially holds color*256 for all pixels. The extra
+	# 8 bits of precision allow for sub-single-color error values to
+	# be propagated
+	# ---------------------------------------------------------------
+	var quant_pixels: PoolIntArray = []
+	quant_pixels.resize(num_pixels * 4)
+	
+	for ii in range(0, num_pixels * 4):
+		var pix: int = next_frame[ii]
+		var pix16: int = pix * 256
+		quant_pixels[ii] = pix16
+	
+	for yy in range(0, height):
+		for xx in range(0, width):
+			var next_pix: int = 4 * (yy * width + xx)
+			var last_pix: int = -1 # instead of NULL
+			if not last_frame.empty():
+				last_pix = 4 * (yy * width + xx)
+			
+			# Compute the colors we want (rounding to nearest)
+			# ------------------------------------------------
+			var rr: int = (quant_pixels[next_pix] + 127) / 256
+			var gg: int = (quant_pixels[next_pix + 1] + 127) / 256
+			var bb: int = (quant_pixels[next_pix + 2] + 127) / 256
+			
+			# if it happens that we want the color from the last
+			# frame, then just write out a transparent pixel
+			# --------------------------------------------------
+			if (not last_frame.empty()) and quant_pixels[last_pix] == rr and quant_pixels[last_pix + 1] == gg and quant_pixels[last_pix + 2] == bb:
+				quant_pixels[next_pix] = rr
+				quant_pixels[next_pix + 1] == gg
+				quant_pixels[next_pix + 2] == bb
+				quant_pixels[next_pix + 3] = K_GIF_TRANS_INDEX
+				continue
+			
+			var best_diff: int = 1000000
+			var best_ind: int = K_GIF_TRANS_INDEX
+			
+			# Search the palete
+			# -----------------
+			gif_get_closest_palette_color(p_pal, rr, gg, bb, best_ind, best_diff, 0) # idk why there is no last parameter passed but I pass 0
+			
+			# Write the result to the temp buffer
+			# -----------------------------------
+			var r_err = quant_pixels[next_pix] - p_pal.r[best_ind] * 256
+			var g_err = quant_pixels[next_pix + 1] - p_pal.g[best_ind] * 256
+			var b_err = quant_pixels[next_pix + 2] - p_pal.b[best_ind] * 256
+			
+			quant_pixels[next_pix] = p_pal.r[best_ind]
+			quant_pixels[next_pix + 1] = p_pal.g[best_ind]
+			quant_pixels[next_pix + 2] = p_pal.b[best_ind]
+			quant_pixels[next_pix + 3] = best_ind
+			
+			# Propagate the error to the four adjacent locations
+			# that we haven't touched yet
+			# --------------------------------------------------
+			var quantloc_7: int = yy * width + xx + 1
+			var quantloc_3: int = yy * width + width + xx - 1
+			var quantloc_5: int = yy * width + width + xx
+			var quantloc_1: int = yy * width + width + xx + 1
+			
+			if quantloc_7 < num_pixels:
+				var pix7: int = 4 * quantloc_7
+				quant_pixels[pix7] += max(-quant_pixels[pix7], r_err * 7 / 16)
+				quant_pixels[pix7] += max(-quant_pixels[pix7 + 1], g_err * 7 / 16)
+				quant_pixels[pix7] += max(-quant_pixels[pix7 + 2], b_err * 7 / 16)
+			
+			if quantloc_3 < num_pixels:
+				var pix3: int = 4 * quantloc_3
+				quant_pixels[pix3] += max(-quant_pixels[pix3], r_err * 3 / 16)
+				quant_pixels[pix3] += max(-quant_pixels[pix3 + 1], g_err * 3 / 16)
+				quant_pixels[pix3] += max(-quant_pixels[pix3 + 2], b_err * 3 / 16)
+			
+			if quantloc_5 < num_pixels:
+				var pix5: int = 4 * quantloc_5
+				quant_pixels[pix5] += max(-quant_pixels[pix5], r_err * 5 / 16)
+				quant_pixels[pix5] += max(-quant_pixels[pix5 + 1], g_err * 5 / 16)
+				quant_pixels[pix5] += max(-quant_pixels[pix5 + 2], b_err * 5 / 16)
+			
+			if quantloc_1 < num_pixels:
+				var pix1: int = 4 * quantloc_1
+				quant_pixels[pix1] += max(-quant_pixels[pix1], r_err * 1 / 16)
+				quant_pixels[pix1] += max(-quant_pixels[pix1 + 1], g_err * 1 / 16)
+				quant_pixels[pix1] += max(-quant_pixels[pix1 + 2], b_err * 1 / 16)		
+	
+	# Copy the palettized result to the output buffer
+	# -----------------------------------------------
+	for ii in range(0, num_pixels * 4):
+		out_frame[ii] = quant_pixels[ii]
+
+# Picks palette colors for the image using simple thresholding, no dithering
+# --------------------------------------------------------------------------
+func gif_threshold_image(last_frame: PoolByteArray, next_frame: PoolByteArray, out_frame: PoolByteArray, width: int, height: int, p_pal: GifPallete):
+	var pindex: int
+	var next_frame_byte_id: int = 0
+	var out_frame_byte_id: int = 0
+	var last_frame_byte_id: int = 0
+	
+	var num_pixels = width * height
+	if have_palette:
+		for ii in range(0, num_pixels):
+			# find exact match
+			pindex = 1 # in case it's not there... which would be bad
+			for pi in range(0, 256):
+				if next_frame[next_frame_byte_id] == have.r[pi]:
+					if next_frame[next_frame_byte_id + 1] == have.g[pi]:
+						if next_frame[next_frame_byte_id + 2] == have.b[pi]:
+							pindex = pi
+							pi = 256 # found
+			out_frame[out_frame_byte_id + 3] = pindex
+			out_frame_byte_id += 4
+			next_frame_byte_id + 4
+		return
+	for ii in range(0, num_pixels):
+		# if a previous color is available, and it matches
+		# the current color, set the pixel to transparent
+		# ------------------------------------------------
+		if (not last_frame.empty()) and (last_frame[last_frame_byte_id] == next_frame[next_frame_byte_id]) and (last_frame[last_frame_byte_id + 1] == next_frame[next_frame_byte_id + 1]) and (last_frame[last_frame_byte_id + 2] == next_frame[next_frame_byte_id + 2]):
+			out_frame[out_frame_byte_id] = last_frame[last_frame_byte_id]
+			out_frame[out_frame_byte_id + 1] = last_frame[last_frame_byte_id + 1]
+			out_frame[out_frame_byte_id + 2] = last_frame[last_frame_byte_id + 2]
+			out_frame[out_frame_byte_id + 3] = K_GIF_TRANS_INDEX
+		else:
+			# palettize the pixel
+			# -------------------
+			var best_diff: int = 1000000
+			var best_ind: int = 1
+			gif_get_closest_palette_color(p_pal, next_frame[next_frame_byte_id], next_frame[next_frame_byte_id + 1], next_frame[next_frame_byte_id + 2], best_ind, best_diff, 0)
+			
+			# Write the resulting color to the output buffer
+			# ----------------------------------------------
+			out_frame[out_frame_byte_id] = p_pal.r[best_ind]
+			out_frame[out_frame_byte_id + 1] = p_pal.g[best_ind]
+			out_frame[out_frame_byte_id + 2] = p_pal.b[best_ind]
+			out_frame[out_frame_byte_id + 3] = best_ind
+			
+			if not last_frame.empty():
+				last_frame_byte_id += 4
+			out_frame_byte_id += 4
+			next_frame_byte_id += 4
