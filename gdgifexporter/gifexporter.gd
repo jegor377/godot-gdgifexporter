@@ -186,36 +186,41 @@ func color_table_to_indexes(colors: Array) -> PoolByteArray:
 		result.append(i)
 	return result
 
-func find_colors_thread(args: Dictionary) -> Array:
+func find_colors_thread(args: Dictionary) -> bool:
 	# args = data: PoolByteArray, start: int, stop: int
-	var result: Array = []
+	var result: Array = args['result']
+	var result_mutex: Mutex = args['result_mutex']
 	var start: int = args['start'] * 4
 	var stop: int = args['stop'] * 4
 	var max_colors_per_chunk: int = args['max_colors_per_chunk']
 	var data: PoolByteArray = args['data']
 
 	var i: int = start
-	while i < stop - 4:
+	while i < stop:
 		var r: int = data[i]
 		var g: int = data[i + 1]
 		var b: int = data[i + 2]
 		var a: int = data[i + 3]
 
+		result_mutex.lock()
 		if result.find([r, g, b, a]) == -1:
 			result.append([r, g, b, a])
+		result_mutex.unlock()
 
-		if result.size() > max_colors_per_chunk:
-			return []
+		result_mutex.lock()
+		if result.size() > 256:
+			return false
+		result_mutex.unlock()
 
 		i += 4
 
-	return result
+	return true
 
 # if has more than 256 colors then return [].
 func find_color_table_if_has_less_than_256_colors(image: Image) -> Array:
 	image.lock()
 	var result: Array = []
-	var not_redundant_result: Array = []
+	var result_mutex: Mutex = Mutex.new()
 
 	var image_pixels_count: int = image.get_data().size() / 4
 	var image_pixels_count_per_chunk: int = int(ceil(float(image_pixels_count) / used_proc_count))
@@ -233,20 +238,17 @@ func find_color_table_if_has_less_than_256_colors(image: Image) -> Array:
 			'data': image.get_data(),
 			'start': start,
 			'stop': stop + 1,
-			'max_colors_per_chunk': max_colors_per_chunk})
+			'max_colors_per_chunk': max_colors_per_chunk,
+			'result': result,
+			'result_mutex': result_mutex})
 
 	for v in thread_pool:
 		var thread_result = (v as Thread).wait_to_finish()
-		if thread_result.empty():
+		if thread_result == false:
 			return []
-		result += thread_result
-
-	for v in result:
-		if not_redundant_result.find(v) == -1:
-			not_redundant_result.append(v)
 
 	image.unlock()
-	return not_redundant_result
+	return result
 
 func change_colors_to_codes_thread(args: Dictionary) -> PoolByteArray:
 	var result: PoolByteArray = PoolByteArray([])
@@ -270,6 +272,7 @@ func change_colors_to_codes_thread(args: Dictionary) -> PoolByteArray:
 			else:
 				result.append(color_index)
 		else:
+			result.append(0)
 			print('change_colors_to_codes_thread: color not found! [%d, %d, %d, %d]' % [r, g, b, a])
 
 		i += 4
