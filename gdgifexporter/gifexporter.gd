@@ -186,134 +186,47 @@ func color_table_to_indexes(colors: Array) -> PoolByteArray:
 		result.append(i)
 	return result
 
-func find_colors_thread(args: Dictionary) -> bool:
-	# args = data: PoolByteArray, start: int, stop: int
-	var result: Array = args['result']
-	var result_mutex: Mutex = args['result_mutex']
-	var start: int = args['start'] * 4
-	var stop: int = args['stop'] * 4
-	var max_colors_per_chunk: int = args['max_colors_per_chunk']
-	var data: PoolByteArray = args['data']
-
-	var i: int = start
-	while i < stop:
-		var r: int = data[i]
-		var g: int = data[i + 1]
-		var b: int = data[i + 2]
-		var a: int = data[i + 3]
-
-		result_mutex.lock()
-		if result.find([r, g, b, a]) == -1:
-			result.append([r, g, b, a])
-		result_mutex.unlock()
-
-		result_mutex.lock()
-		if result.size() > 256:
-			return false
-		result_mutex.unlock()
-
-		i += 4
-
-	return true
-
 # if has more than 256 colors then return [].
-func find_color_table_if_has_less_than_256_colors(image: Image) -> Array:
+func find_color_table_if_has_less_than_256_colors(image: Image) -> Dictionary:
 	image.lock()
-	var result: Array = []
-	var result_mutex: Mutex = Mutex.new()
+	var result: Dictionary = {}
 	var image_data: PoolByteArray = image.get_data()
 
-	var image_pixels_count: int = image_data.size() / 4
-	var image_pixels_count_per_chunk: int = int(ceil(float(image_pixels_count) / used_proc_count))
-	var max_colors_per_chunk: int = int(ceil(256.0 / used_proc_count))
-
-	var thread_pool: Array = []
-	for i in range(used_proc_count):
-		var new_thread: Thread = Thread.new()
-		var start: int = i * image_pixels_count_per_chunk
-		var stop: int = (i + 1) * image_pixels_count_per_chunk
-		if i == (used_proc_count - 1):
-			stop = image_pixels_count
-		thread_pool.append(new_thread)
-		new_thread.start(self, 'find_colors_thread', {
-			'data': image_data,
-			'start': start,
-			'stop': stop + 1,
-			'max_colors_per_chunk': max_colors_per_chunk,
-			'result': result,
-			'result_mutex': result_mutex})
-
-	for v in thread_pool:
-		var thread_result = (v as Thread).wait_to_finish()
-		if thread_result == false:
-			return []
+	for i in range(0, image_data.size(), 4):
+		var color: Array = [int(image_data[i]), int(image_data[i + 1]), int(image_data[i + 2]), int(image_data[i + 3])]
+		if not color in result:
+			result[color] = result.size()
+		if result.size() > 256:
+			break
 
 	image.unlock()
 	return result
 
-func change_colors_to_codes_thread(args: Dictionary) -> PoolByteArray:
+func change_colors_to_codes(image: Image,
+		color_palette: Dictionary,
+		transparency_color_index: int) -> PoolByteArray:
+	image.lock()
+	var image_data: PoolByteArray = image.get_data()
 	var result: PoolByteArray = PoolByteArray([])
-	var data: PoolByteArray = args['data']
-	var start: int = args['start'] * 4
-	var stop: int = args['stop'] * 4
-	var color_palette: Array = args['color_palette']
-	var transparency_color_index: int = args['transparency_color_index']
 
-	var i: int = start
-	while i < stop - 4:
-		var r: int = data[i]
-		var g: int = data[i + 1]
-		var b: int = data[i + 2]
-		var a: int = data[i + 3]
-
-		var color_index: int = color_palette.find([r, g, b, a])
-		if color_index != -1:
-			if a == 0 and transparency_color_index != -1:
+	for i in range(0, image_data.size(), 4):
+		var color: Array = [int(image_data[i]), int(image_data[i + 1]), int(image_data[i + 2]), int(image_data[i + 3])]
+		if color in color_palette:
+			if color[3] == 0 and transparency_color_index != -1:
 				result.append(transparency_color_index)
 			else:
-				result.append(color_index)
+				result.append(color_palette[color])
 		else:
 			result.append(0)
-			print('change_colors_to_codes_thread: color not found! [%d, %d, %d, %d]' % [r, g, b, a])
+			print('change_colors_to_codes_thread: color not found! [%d, %d, %d, %d]' % color)
 
-		i += 4
-
+	image.unlock()
 	return result
 
-func change_colors_to_codes(image: Image,
-		color_palette: Array,
-		transparency_color_index: int) -> PoolByteArray:
-	var image_data: PoolByteArray = image.get_data()
-	var image_pixels_count: int = image_data.size() / 4
-	var image_pixels_count_per_chunk: int = int(ceil(float(image_pixels_count) / used_proc_count))
-
-	var result: PoolByteArray = PoolByteArray([])
-
-	var thread_pool: Array = []
-	for i in range(used_proc_count):
-		var new_thread: Thread = Thread.new()
-		var start: int = i * image_pixels_count_per_chunk
-		var stop: int = (i + 1) * image_pixels_count_per_chunk
-		if i == (used_proc_count - 1):
-			stop = image_pixels_count
-		thread_pool.append(new_thread)
-		new_thread.start(self, 'change_colors_to_codes_thread', {
-			'data': image_data,
-			'start': start,
-			'stop': stop + 1,
-			'color_palette': color_palette,
-			'transparency_color_index': transparency_color_index})
-
-	for v in thread_pool:
-		var thread_result: PoolByteArray = (v as Thread).wait_to_finish()
-		result += thread_result
-
-	return result
-
-func find_transparency_color_index(color_table: Array) -> int:
-	for i in range(color_table.size()):
-		if color_table[i][3] == 0:
-			return i
+func find_transparency_color_index(color_table: Dictionary) -> int:
+	for color in color_table:
+		if color[3] == 0:
+			return color_table[color]
 	return -1
 
 func write_frame(image: Image,
@@ -321,26 +234,26 @@ func write_frame(image: Image,
 		quantizator) -> void:
 	var delay_time: int = int(ceil(frame_delay / 0.01))
 
-	var found_color_table: Array = find_color_table_if_has_less_than_256_colors(
+	var found_color_table: Dictionary = find_color_table_if_has_less_than_256_colors(
 			image)
 
 	var image_converted_to_codes: PoolByteArray
 	var transparency_color_index: int = -1
 	var color_table: Array
-	if found_color_table != []: # we don't need to quantize the image.
+	if found_color_table.size() <= 256: # we don't need to quantize the image.
 		# exporter images always try to include transparency because I'm lazy.
 		transparency_color_index = find_transparency_color_index(found_color_table)
-		if transparency_color_index == -1 and found_color_table.size() != 256:
-			found_color_table.append([0, 0, 0, 0])
+		if transparency_color_index == -1 and found_color_table.size() <= 255:
+			found_color_table[[0, 0, 0, 0]] = found_color_table.size()
 			transparency_color_index = found_color_table.size() - 1
 		image_converted_to_codes = change_colors_to_codes(
 				image, found_color_table, transparency_color_index)
-		color_table = found_color_table
+		color_table = found_color_table.keys()
 	else: # we have to quantize the image.
 		var quantization_result: Array = quantizator.quantize_and_convert_to_codes(image)
 		image_converted_to_codes = quantization_result[0]
 		color_table = quantization_result[1]
-		transparency_color_index = find_transparency_color_index(color_table)
+#		transparency_color_index = find_transparency_color_index(color_table)
 
 	var color_table_indexes = color_table_to_indexes(color_table)
 	var compressed_image_result: Array = lzw.compress_lzw(

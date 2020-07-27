@@ -28,17 +28,11 @@ var lsbbitunpacker = preload('./lsbbitunpacker.gd')
 
 class CodeEntry:
 	var sequence: PoolByteArray
+	var hex_encode: String
 
 	func _init(_sequence):
 		sequence = _sequence
-
-	func equals(other):
-		if self.sequence.size() == other.sequence.size():
-			for i in range(self.sequence.size()):
-				if self.sequence[i] != other.sequence[i]:
-					return false
-			return true
-		return false
+		hex_encode = sequence.hex_encode()
 
 	func add(other):
 		return CodeEntry.new(self.sequence + other.sequence)
@@ -50,36 +44,29 @@ class CodeEntry:
 		return result.substr(0, result.length() - 2)
 
 class CodeTable:
-	var entries: Array = []
+	var entries: Dictionary = {}
 	var counter: int = 0
+	var lookup: Dictionary = {}
 
 	func add(entry) -> int:
-		entries.append({
-			'id': self.counter,
-			'entry': entry
-		})
+		self.entries[self.counter] = entry
+		self.lookup[entry.sequence.hex_encode()] = self.counter
 		counter += 1
 		return counter
 
 	func find(entry) -> int:
-		for i in range(self.entries.size()):
-			if self.entries[i]['entry'].equals(entry):
-				return self.entries[i]['id']
-		return -1
+		return self.lookup.get(entry.sequence.hex_encode(), -1)
 
 	func has(entry) -> bool:
 		return self.find(entry) != -1
 
 	func get(index) -> CodeEntry:
-		for i in range(self.entries.size()):
-			if self.entries[i]['id'] == index:
-				return self.entries[i]['entry']
-		return null
+		return self.entries.get(index, null)
 
 	func to_string() -> String:
 		var result: String = 'CodeTable:\n'
-		for entry in self.entries:
-			result += str(entry['id']) + ': ' + entry['entry'].to_string() + '\n'
+		for id in self.entries:
+			result += str(id) + ': ' + self.entries[id].to_string() + '\n'
 		result += 'Counter: ' + str(self.counter) + '\n'
 		return result
 
@@ -125,16 +112,17 @@ func compress_lzw(image: PoolByteArray, colors: PoolByteArray) -> Array:
 
 	# Read first index from index stream.
 	var index_buffer: CodeEntry = CodeEntry.new([index_stream[0]])
-	index_stream.remove(0)
+	var data_index: int = 1
 	# <LOOP POINT>
-	while not index_stream.empty():
+	while data_index < index_stream.size():
 		# Get the next index from the index stream.
-		var K: CodeEntry = CodeEntry.new([index_stream[0]])
-		index_stream.remove(0)
+		var K: CodeEntry = CodeEntry.new([index_stream[data_index]])
+		data_index += 1
 		# Is index buffer + K in our code table?
-		if code_table.has(index_buffer.add(K)): # if YES
+		var new_index_buffer: CodeEntry = index_buffer.add(K)
+		if code_table.has(new_index_buffer): # if YES
 			# Add K to the end of the index buffer
-			index_buffer = index_buffer.add(K)
+			index_buffer = new_index_buffer
 		else: # if NO
 			# Add a row for index buffer + K into our code table
 			binary_code_stream.write_bits(code_table.find(index_buffer), current_code_size)
@@ -145,7 +133,7 @@ func compress_lzw(image: PoolByteArray, colors: PoolByteArray) -> Array:
 			if last_entry_index != 4095:
 				# Output the code for just the index buffer to our code stream
 				# warning-ignore:return_value_discarded
-				code_table.add(index_buffer.add(K))
+				code_table.add(new_index_buffer)
 			else:
 				# if we exceeded 4095 index (code table is full), we should
 				# output Clear Code and reset everything.
