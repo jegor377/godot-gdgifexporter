@@ -239,7 +239,7 @@ func calculate_average_colors(image: Image, _boxes: Array) -> Array:
 	for bi in range(boxes.size()):
 		boxes[bi].calculate_average_color()
 		var v3: Vector3 = Vector3(boxes[bi].average_color.r, boxes[bi].average_color.g, boxes[bi].average_color.b)
-		average_colors.append(v3)
+		average_colors.append([v3, boxes[bi].average_color.a])
 
 	return average_colors
 
@@ -255,7 +255,7 @@ func change_colors(image: Image, average_colors: Array) -> PoolByteArray:
 			nearest_color = table[v3]
 		else:
 			for ci in range(1, average_colors.size()):
-				if v3.distance_squared_to(average_colors[ci]) < v3.distance_squared_to(average_colors[nearest_color]):
+				if v3.distance_squared_to(average_colors[ci][0]) < v3.distance_squared_to(average_colors[nearest_color][0]):
 					nearest_color = ci
 			table[v3] = nearest_color
 
@@ -266,7 +266,7 @@ func change_colors(image: Image, average_colors: Array) -> PoolByteArray:
 func convert_pixel_colors_to_array_colors(colors: Array) -> Array:
 	var result := []
 	for v in colors:
-		result.append([v.x, v.y, v.z, 255])
+		result.append([v[0].x, v[0].y, v[0].z, v[1]])
 	return result
 
 func quantize_and_convert_to_codes(
