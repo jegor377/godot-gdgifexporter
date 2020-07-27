@@ -32,7 +32,11 @@ class PixelColor:
 			a /= value
 
 	func distance_to(color: PixelColor) -> float:
-		return sqrt(pow(r - color.r, 2) + pow(g - color.g, 2) + pow(b - color.b, 2) + pow(a - color.a, 2))
+		var d_r: float = r - color.r
+		var d_g: float = g - color.g
+		var d_b: float = b - color.b
+		var d_a: float = a - color.a
+		return (d_r * d_r) + (d_g * d_g) + (d_b * d_b) + (d_a * d_a)
 
 	func to_string() -> String:
 		return 'PixelColor: r = %d, g = %d, b = %d, a = %d\n' % [r, g, b, a]
@@ -119,13 +123,14 @@ func calculate_visible_rectangle(image: Image) -> VisibleRectangle:
 	var g_total_visible_section: AxisSection = null
 	var b_total_visible_section: AxisSection = null
 	var a_total_visible_section: AxisSection = null
+	var image_data: PoolByteArray = image.get_data()
 
 	var i: int = 0
-	while i < image.get_data().size() - 4:
-		var r: int = image.get_data()[i]
-		var g: int = image.get_data()[i + 1]
-		var b: int = image.get_data()[i + 2]
-		var a: int = image.get_data()[i + 3]
+	while i < image_data.size() - 4:
+		var r: int = image_data[i]
+		var g: int = image_data[i + 1]
+		var b: int = image_data[i + 2]
+		var a: int = image_data[i + 3]
 
 		if r_total_visible_section == null:
 			r_total_visible_section = AxisSection.new(r, r)
@@ -212,13 +217,14 @@ func create_color_boxes(visible_sections: VisibleRectangle, divisions_per_axis: 
 func calculate_average_colors(image: Image, _boxes: Array) -> Array:
 	var boxes: Array = _boxes
 	var average_colors: Array = []
+	var image_data: PoolByteArray = image.get_data()
 
 	var i: int = 0
-	while i < image.get_data().size() - 4:
-		var r: int = image.get_data()[i]
-		var g: int = image.get_data()[i + 1]
-		var b: int = image.get_data()[i + 2]
-		var a: int = image.get_data()[i + 3]
+	while i < image_data.size() - 4:
+		var r: int = image_data[i]
+		var g: int = image_data[i + 1]
+		var b: int = image_data[i + 2]
+		var a: int = image_data[i + 3]
 		var color: PixelColor = PixelColor.new(r, g, b, a)
 
 		for bi in range(boxes.size()):
@@ -265,8 +271,9 @@ func change_colors_thread(args: Dictionary) -> PoolByteArray:
 
 func change_colors(image: Image, average_colors: Array) -> PoolByteArray:
 	var result_image_data: PoolByteArray
+	var image_data: PoolByteArray = image.get_data()
 
-	var image_pixels_count: int = image.get_data().size() / 4
+	var image_pixels_count: int = image_data.size() / 4
 	var image_pixels_count_per_chunk: int = int(ceil(float(image_pixels_count) / 4.0))
 
 	var thread_1: Thread = Thread.new()
@@ -275,22 +282,22 @@ func change_colors(image: Image, average_colors: Array) -> PoolByteArray:
 	var thread_4: Thread = Thread.new()
 
 	thread_1.start(self, "change_colors_thread", {
-			'data': image.get_data(),
+			'data': image_data,
 			'average_colors': average_colors,
 			'start': 0,
 			'stop': image_pixels_count_per_chunk})
 	thread_2.start(self, "change_colors_thread", {
-			'data': image.get_data(),
+			'data': image_data,
 			'average_colors': average_colors,
 			'start': image_pixels_count_per_chunk,
 			'stop': 2 * image_pixels_count_per_chunk})
 	thread_3.start(self, "change_colors_thread", {
-			'data': image.get_data(),
+			'data': image_data,
 			'average_colors': average_colors,
 			'start': 2 * image_pixels_count_per_chunk,
 			'stop': 3 * image_pixels_count_per_chunk})
 	thread_4.start(self, "change_colors_thread", {
-			'data': image.get_data(),
+			'data': image_data,
 			'average_colors': average_colors,
 			'start': 3 * image_pixels_count_per_chunk,
 			'stop': image_pixels_count})

@@ -221,8 +221,9 @@ func find_color_table_if_has_less_than_256_colors(image: Image) -> Array:
 	image.lock()
 	var result: Array = []
 	var result_mutex: Mutex = Mutex.new()
+	var image_data: PoolByteArray = image.get_data()
 
-	var image_pixels_count: int = image.get_data().size() / 4
+	var image_pixels_count: int = image_data.size() / 4
 	var image_pixels_count_per_chunk: int = int(ceil(float(image_pixels_count) / used_proc_count))
 	var max_colors_per_chunk: int = int(ceil(256.0 / used_proc_count))
 
@@ -235,7 +236,7 @@ func find_color_table_if_has_less_than_256_colors(image: Image) -> Array:
 			stop = image_pixels_count
 		thread_pool.append(new_thread)
 		new_thread.start(self, 'find_colors_thread', {
-			'data': image.get_data(),
+			'data': image_data,
 			'start': start,
 			'stop': stop + 1,
 			'max_colors_per_chunk': max_colors_per_chunk,

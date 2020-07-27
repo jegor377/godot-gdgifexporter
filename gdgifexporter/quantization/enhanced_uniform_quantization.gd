@@ -32,7 +32,11 @@ class PixelColor:
 			a /= value
 
 	func distance_to(color: PixelColor) -> float:
-		return sqrt(pow(r - color.r, 2) + pow(g - color.g, 2) + pow(b - color.b, 2) + pow(a - color.a, 2))
+		var d_r: float = r - color.r
+		var d_g: float = g - color.g
+		var d_b: float = b - color.b
+		var d_a: float = a - color.a
+		return (d_r * d_r) + (d_g * d_g) + (d_b * d_b) + (d_a * d_a)
 
 	func to_string() -> String:
 		return 'PixelColor: r = %d, g = %d, b = %d, a = %d\n' % [r, g, b, a]
@@ -88,8 +92,9 @@ func change_colors_thread(args: Dictionary) -> PoolByteArray:
 
 func change_colors(image: Image, average_colors: Array) -> PoolByteArray:
 	var result_image_data: PoolByteArray
+	var image_data: PoolByteArray = image.get_data()
 
-	var image_pixels_count: int = image.get_data().size() / 4
+	var image_pixels_count: int = image_data.size() / 4
 	var image_pixels_count_per_chunk: int = int(ceil(float(image_pixels_count) / 4.0))
 
 	var thread_1: Thread = Thread.new()
@@ -98,22 +103,22 @@ func change_colors(image: Image, average_colors: Array) -> PoolByteArray:
 	var thread_4: Thread = Thread.new()
 
 	thread_1.start(self, "change_colors_thread", {
-			'data': image.get_data(),
+			'data': image_data,
 			'average_colors': average_colors,
 			'start': 0,
 			'stop': image_pixels_count_per_chunk})
 	thread_2.start(self, "change_colors_thread", {
-			'data': image.get_data(),
+			'data': image_data,
 			'average_colors': average_colors,
 			'start': image_pixels_count_per_chunk,
 			'stop': 2 * image_pixels_count_per_chunk})
 	thread_3.start(self, "change_colors_thread", {
-			'data': image.get_data(),
+			'data': image_data,
 			'average_colors': average_colors,
 			'start': 2 * image_pixels_count_per_chunk,
 			'stop': 3 * image_pixels_count_per_chunk})
 	thread_4.start(self, "change_colors_thread", {
-			'data': image.get_data(),
+			'data': image_data,
 			'average_colors': average_colors,
 			'start': 3 * image_pixels_count_per_chunk,
 			'stop': image_pixels_count})
@@ -130,15 +135,17 @@ func change_colors(image: Image, average_colors: Array) -> PoolByteArray:
 # moves every color from palette colors to the nearest found color in image
 func enhance_colors(image: Image, palette_colors: Array) -> Array:
 	var result_palette: Array = []
+	var image_data: PoolByteArray = image.get_data()
+
 	for c in palette_colors:
 		var nearest_color: PixelColor = null
 		var i: int = 0
-		while i < image.get_data().size() - 4:
+		while i < image_data.size() - 4:
 			var color: PixelColor = PixelColor.new(
-					image.get_data()[i],
-					image.get_data()[i + 1],
-					image.get_data()[i + 2],
-					image.get_data()[i + 3])
+					image_data[i],
+					image_data[i + 1],
+					image_data[i + 2],
+					image_data[i + 3])
 
 			if (nearest_color == null) or (c.distance_to(color) < c.distance_to(nearest_color)):
 				nearest_color = color

@@ -32,7 +32,11 @@ class PixelColor:
 			a /= value
 
 	func distance_to(color: PixelColor) -> float:
-		return sqrt(pow(r - color.r, 2) + pow(g - color.g, 2) + pow(b - color.b, 2) + pow(a - color.a, 2))
+		var d_r: float = r - color.r
+		var d_g: float = g - color.g
+		var d_b: float = b - color.b
+		var d_a: float = a - color.a
+		return (d_r * d_r) + (d_g * d_g) + (d_b * d_b) + (d_a * d_a)
 
 	func to_string() -> String:
 		return 'PixelColor: r = %d, g = %d, b = %d, a = %d\n' % [r, g, b, a]
