@@ -254,9 +254,11 @@ func change_colors(image: Image, average_colors: Array) -> PoolByteArray:
 		if v3 in table:
 			nearest_color = table[v3]
 		else:
+			var nearest_distance = 200000 # 196608 is the largest possible distance between black and white
 			for ci in range(1, average_colors.size()):
-				if v3.distance_squared_to(average_colors[ci][0]) < v3.distance_squared_to(average_colors[nearest_color][0]):
+				if v3.distance_squared_to(average_colors[ci][0]) < nearest_distance:
 					nearest_color = ci
+					nearest_distance = v3.distance_squared_to(average_colors[nearest_color][0])
 			table[v3] = nearest_color
 
 		result_image_data.append(nearest_color)
