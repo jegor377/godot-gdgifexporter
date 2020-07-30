@@ -218,7 +218,7 @@ func change_colors_to_codes(image: Image,
 				result.append(color_palette[color])
 		else:
 			result.append(0)
-			print('change_colors_to_codes_thread: color not found! [%d, %d, %d, %d]' % color)
+			print('change_colors_to_codes: color not found! [%d, %d, %d, %d]' % color)
 
 	image.unlock()
 	return result
