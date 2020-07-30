@@ -24,7 +24,7 @@ func _ready():
 func _on_Button_pressed():
 	var exporter = gifexporter.new(img1.get_width(), img1.get_height())
 	exporter.write_frame(img1, 0.3, median_cut)
-#	exporter.write_frame(img2, 0.5, median_cut)
+	exporter.write_frame(img2, 0.5, my_quantizator)
 
 	var file: File = File.new()
 	file.open('user://result.gif', File.WRITE)

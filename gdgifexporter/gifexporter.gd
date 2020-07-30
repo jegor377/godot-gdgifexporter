@@ -230,9 +230,9 @@ func find_transparency_color_index(color_table: Dictionary) -> int:
 	return -1
 
 func find_transparency_color_index_for_quantized_image(color_table: Array) -> int:
-#	for i in range(color_table.size()):
-#		if color_table[i][0] + color_table[i][1] + color_table[i][2] + color_table[i][3] == 0:
-#			return i
+	for i in range(color_table.size()):
+		if color_table[i][0] + color_table[i][1] + color_table[i][2] + color_table[i][3] == 0:
+			return i
 	return -1
 
 func write_frame(image: Image,
@@ -259,7 +259,12 @@ func write_frame(image: Image,
 		var quantization_result: Array = quantizator.quantize_and_convert_to_codes(image)
 		image_converted_to_codes = quantization_result[0]
 		color_table = quantization_result[1]
-		transparency_color_index = 0 if quantization_result[2] else -1
+		# don't find transparency index if the quantization algorithm
+		# provides it as third return value
+		if quantization_result.size() == 3:
+			transparency_color_index = 0 if quantization_result[2] else -1
+		else:
+			transparency_color_index = find_transparency_color_index_for_quantized_image(quantization_result[1])
 
 	var color_table_indexes = color_table_to_indexes(color_table)
 	var compressed_image_result: Array = lzw.compress_lzw(
