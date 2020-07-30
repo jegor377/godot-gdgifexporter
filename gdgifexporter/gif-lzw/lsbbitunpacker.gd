@@ -27,6 +27,7 @@ class LSB_LZWBitUnpacker:
 	var chunk_stream: PoolByteArray
 	var bit_index: int = 0
 	var byte: int
+	var byte_index: int = 0
 
 	func _init(_chunk_stream: PoolByteArray):
 		chunk_stream = _chunk_stream
@@ -39,8 +40,8 @@ class LSB_LZWBitUnpacker:
 		return value | (1 << index)
 
 	func get_byte():
-		byte = chunk_stream[0]
-		chunk_stream.remove(0)
+		byte = chunk_stream[byte_index]
+		byte_index += 1
 		bit_index = 0
 
 	func read_bits(bits_count: int) -> int:
