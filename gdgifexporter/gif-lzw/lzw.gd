@@ -28,14 +28,14 @@ var lsbbitunpacker = preload('./lsbbitunpacker.gd')
 
 class CodeEntry:
 	var sequence: PoolByteArray
-	var hex_encode: String
+	var raw_array: Array
 
 	func _init(_sequence):
+		raw_array = _sequence
 		sequence = _sequence
-		hex_encode = sequence.hex_encode()
 
 	func add(other):
-		return CodeEntry.new(self.sequence + other.sequence)
+		return CodeEntry.new(self.raw_array + other.raw_array)
 
 	func to_string():
 		var result: String = ''
@@ -50,12 +50,12 @@ class CodeTable:
 
 	func add(entry) -> int:
 		self.entries[self.counter] = entry
-		self.lookup[entry.sequence.hex_encode()] = self.counter
+		self.lookup[entry.raw_array] = self.counter
 		counter += 1
 		return counter
 
 	func find(entry) -> int:
-		return self.lookup.get(entry.sequence.hex_encode(), -1)
+		return self.lookup.get(entry.raw_array, -1)
 
 	func has(entry) -> bool:
 		return self.find(entry) != -1
