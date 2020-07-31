@@ -22,10 +22,6 @@ class TreeNode:
 		self.colors = _colors
 
 
-	func sort_color(a, b):
-		return a[axis] < b[axis]
-
-
 	func median_cut() -> void:
 		var start: Array = [255, 255, 255]
 		var end: Array = [0, 0, 0]
@@ -45,12 +41,22 @@ class TreeNode:
 		if delta[2] > delta[axis]:
 			axis = 2
 
-		if parent == null or axis != parent.axis:
-			colors.sort_custom(self, "sort_color")
+		var axis_sort: Array = []
+		for i in colors.size():
+			axis_sort.append(colors[i][axis])
+		axis_sort.sort()
 		var cut = colors.size() >> 1
-		median = colors[cut][axis]
-		left = TreeNode.new(self, colors.slice(0, cut - 1))
-		right = TreeNode.new(self, colors.slice(cut, colors.size() - 1))
+		median = axis_sort[cut]
+
+		var left_colors: Array = []
+		var right_colors: Array = []
+		for color in colors:
+			if color[axis] < median:
+				left_colors.append(color)
+			else:
+				right_colors.append(color)
+		left = TreeNode.new(self, left_colors)
+		right = TreeNode.new(self, right_colors)
 		colors = []
 
 
@@ -86,6 +92,9 @@ func convert_image(image: Image, colors: Array) -> PoolByteArray:
 	var nearest_lookup: Dictionary = {}
 	var result: PoolByteArray = PoolByteArray()
 
+	for i in colors.size():
+		colors[i] = Vector3(colors[i][0], colors[i][1], colors[i][2])
+
 	for i in range(0, data.size(), 4):
 		if data[i + 3] == 0:
 			result.append(0)
@@ -95,12 +104,12 @@ func convert_image(image: Image, colors: Array) -> PoolByteArray:
 		if current in nearest_lookup:
 			nearest_index = nearest_lookup[current]
 		else:
-			var nearest_color: Vector3 = Vector3(colors[nearest_index][0], colors[nearest_index][1], colors[nearest_index][2])
+			var nearest_distance: float = current.distance_squared_to(colors[nearest_index])
 			for j in range(1 + int(transparency), colors.size()):
-				var color: Vector3 = Vector3(colors[j][0], colors[j][1], colors[j][2])
-				if current.distance_squared_to(color) < current.distance_squared_to(nearest_color):
+				var distance: float = current.distance_squared_to(colors[j])
+				if distance < nearest_distance:
 					nearest_index = j
-					nearest_color = color
+					nearest_distance = distance
 			nearest_lookup[current] = nearest_index
 		result.append(nearest_index)
 
