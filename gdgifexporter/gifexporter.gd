@@ -77,7 +77,7 @@ class LocalColorTable:
 
 	func get_size() -> int:
 		if colors.size() <= 1:
-			return 1
+			return 0
 		return int(ceil(log2(colors.size()) - 1))
 
 	func to_bytes() -> PoolByteArray:
@@ -188,7 +188,6 @@ func color_table_to_indexes(colors: Array) -> PoolByteArray:
 		result.append(i)
 	return result
 
-# if has more than 256 colors then return [].
 func find_color_table_if_has_less_than_256_colors(image: Image) -> Dictionary:
 	image.lock()
 	var result: Dictionary = {}
@@ -237,6 +236,13 @@ func find_transparency_color_index_for_quantized_image(color_table: Array) -> in
 			return i
 	return -1
 
+func make_sure_color_table_is_at_least_size_4(color_table: Array) -> Array:
+	var result := [] + color_table
+	if color_table.size() < 4:
+		for i in range(4 - color_table.size()):
+			result.append([0, 0, 0, 0])
+	return result
+
 func write_frame(image: Image,
 		frame_delay: float,
 		quantizator) -> void:
@@ -251,12 +257,12 @@ func write_frame(image: Image,
 	if found_color_table.size() <= 256: # we don't need to quantize the image.
 		# exporter images always try to include transparency because I'm lazy.
 		transparency_color_index = find_transparency_color_index(found_color_table)
-		if transparency_color_index == -1 and found_color_table.size() <= 255 and found_color_table.size() > 1:
+		if transparency_color_index == -1 and found_color_table.size() <= 255:
 			found_color_table[[0, 0, 0, 0]] = found_color_table.size()
 			transparency_color_index = found_color_table.size() - 1
 		image_converted_to_codes = change_colors_to_codes(
 				image, found_color_table, transparency_color_index)
-		color_table = found_color_table.keys()
+		color_table = make_sure_color_table_is_at_least_size_4(found_color_table.keys())
 	else: # we have to quantize the image.
 		var quantization_result: Array = quantizator.quantize_and_convert_to_codes(image)
 		image_converted_to_codes = quantization_result[0]
