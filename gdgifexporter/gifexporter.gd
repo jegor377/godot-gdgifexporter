@@ -76,6 +76,8 @@ class LocalColorTable:
 		return log(value) / log(2.0)
 
 	func get_size() -> int:
+		if colors.size() <= 1:
+			return 1
 		return int(ceil(log2(colors.size()) - 1))
 
 	func to_bytes() -> PoolByteArray:
@@ -249,7 +251,7 @@ func write_frame(image: Image,
 	if found_color_table.size() <= 256: # we don't need to quantize the image.
 		# exporter images always try to include transparency because I'm lazy.
 		transparency_color_index = find_transparency_color_index(found_color_table)
-		if transparency_color_index == -1 and found_color_table.size() <= 255:
+		if transparency_color_index == -1 and found_color_table.size() <= 255 and found_color_table.size() > 1:
 			found_color_table[[0, 0, 0, 0]] = found_color_table.size()
 			transparency_color_index = found_color_table.size() - 1
 		image_converted_to_codes = change_colors_to_codes(
