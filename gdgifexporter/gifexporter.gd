@@ -147,8 +147,8 @@ class ImageData:
 			if i == 254:
 				i = 0
 
-#		if not image_data.empty():
-#			result.append(0)
+		if not image_data.empty():
+			result.append(0)
 
 		return result
 

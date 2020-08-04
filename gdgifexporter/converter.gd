@@ -6,6 +6,9 @@ func setup(image: Image, colors: Array) -> PoolByteArray:
 	var canvas = VisualServer.canvas_create()
 	VisualServer.viewport_attach_canvas(vp, canvas)
 	VisualServer.viewport_set_size(vp, image.get_width(), image.get_height())
+	VisualServer.viewport_set_disable_3d(vp, true)
+	VisualServer.viewport_set_usage(vp, VisualServer.VIEWPORT_USAGE_2D)
+	VisualServer.viewport_set_hdr(vp, true)
 	VisualServer.viewport_set_active(vp, true)
 
 	var ci_rid = VisualServer.canvas_item_create()
