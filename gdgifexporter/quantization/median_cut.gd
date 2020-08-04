@@ -1,6 +1,7 @@
 extends Node
 
 
+var converter = preload('../converter.gd').new()
 var color_table: Dictionary = {}
 var transparency: bool = false
 var tree: TreeNode
@@ -142,4 +143,7 @@ func quantize_and_convert_to_codes(image: Image) -> Array:
 	var color_array: Array = color_quantized.keys()
 	if transparency:
 		color_array.push_front([0, 0, 0])
-	return [convert_image(image, color_array), color_array, transparency]
+#	return [convert_image(image, color_array), color_array, transparency]
+
+	var data: PoolByteArray = converter.setup(image, color_array)
+	return [data, color_array, transparency]
