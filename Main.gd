@@ -26,7 +26,7 @@ func _ready():
 	img1.convert(Image.FORMAT_RGBA8)
 	img2.load('res://two_colors.png')
 	img2.convert(Image.FORMAT_RGBA8)
-	img3.load('res://transparent.png')
+	img3.load('res://img1.png')
 	img3.convert(Image.FORMAT_RGBA8)
 	img4.load('res://one_color.png')
 	img4.convert(Image.FORMAT_RGBA8)
@@ -48,10 +48,33 @@ func export_thread_method(args: Dictionary):
 	should_count = true
 	count_mutex.unlock()
 	var exporter = gifexporter.new(img1.get_width(), img1.get_height())
-	exporter.write_frame(img1, 1, median_cut)
-	exporter.write_frame(img2, 1, median_cut)
-	exporter.write_frame(img3, 1, median_cut)
-	exporter.write_frame(img4, 1, median_cut)
+#	var conv_img_res = exporter.convert_image(img1, median_cut)
+#	if conv_img_res.error == exporter.Error.OK:
+#		var conv_img = exporter.scale_conv_image(conv_img_res.converted_image, 10)
+#		exporter.write_frame_from_conv_image(conv_img, 1)
+#	else:
+#		push_error("Error: %d" % [conv_img_res.error])
+#	exporter.write_frame(img1, 1, enhanced_uniform_quantizator)
+#	exporter.write_frame(img2, 1, enhanced_uniform_quantizator)
+#	exporter.write_frame(img3, 1, enhanced_uniform_quantizator)
+#	exporter.write_frame(img4, 1, enhanced_uniform_quantizator)
+	var images := [img1, img2, img3, img4]
+	var export_threads: Array = []
+	for image in images:
+		var img_export_thread := Thread.new()
+		img_export_thread.start(exporter, "write_frame_in_thread", {
+			'image': image,
+			'frame_delay': 1,
+			'quantizator': median_cut
+		})
+		export_threads.append(img_export_thread)
+
+	for img_export_thread in export_threads:
+		var result = img_export_thread.wait_to_finish()
+		if result.error == exporter.Error.OK:
+			exporter.join_frame(result)
+		else:
+			push_error('export_thread_method: Error while exporting. Code %d.' % [result.error])
 
 	print("DONE")
 	count_mutex.lock()
@@ -71,3 +94,4 @@ func _on_Button_pressed():
 			export_thread.wait_to_finish()
 		export_thread = Thread.new()
 		export_thread.start(self, 'export_thread_method', {})
+	#export_thread_method({})

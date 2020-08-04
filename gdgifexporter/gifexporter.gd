@@ -15,7 +15,9 @@ class GraphicControlExtension:
 	var delay_time: int = 0
 	var transparent_color_index: int = 0
 
-	func _init(_delay_time: int, use_transparency: bool = false, _transparent_color_index: int = 0):
+	func _init(_delay_time: int,
+			use_transparency: bool = false,
+			_transparent_color_index: int = 0):
 		delay_time = _delay_time
 		transparent_color_index = _transparent_color_index
 		if use_transparency:
@@ -153,6 +155,34 @@ class ImageData:
 
 		return result
 
+class ConvertedImage:
+	var image_converted_to_codes: PoolByteArray
+	var color_table: Array
+	var transparency_color_index: int
+	var width: int
+	var height: int
+
+class ConvertionResult:
+	var converted_image: ConvertedImage = ConvertedImage.new()
+	var error: int = Error.OK
+
+	func with_error_code(_error: int) -> ConvertionResult:
+		error = _error
+		return self
+
+class ThreadWriteFrameResult:
+	var frame_data: PoolByteArray = PoolByteArray([])
+	var error: int = Error.OK
+
+	func with_error_code(_error: int) -> ThreadWriteFrameResult:
+		error = _error
+		return self
+
+enum Error {
+	OK = 0,
+	EMPTY_IMAGE = 1,
+	BAD_IMAGE_FORMAT = 2
+}
 
 # File data and Header
 var data: PoolByteArray = 'GIF'.to_ascii() + '89a'.to_ascii()
@@ -181,6 +211,9 @@ func _init(_width: int, _height: int):
 			"2.0")
 	application_extension.application_data = PoolByteArray([1, 0, 0])
 	data += application_extension.to_bytes()
+
+func calc_delay_time(frame_delay: float) -> int:
+	return int(ceil(frame_delay / 0.01))
 
 func color_table_to_indexes(colors: Array) -> PoolByteArray:
 	var result: PoolByteArray = PoolByteArray([])
@@ -219,20 +252,23 @@ func change_colors_to_codes(image: Image,
 				result.append(color_palette[color])
 		else:
 			result.append(0)
-			print('change_colors_to_codes: color not found! [%d, %d, %d, %d]' % color)
+			push_warning('change_colors_to_codes: color not found! [%d, %d, %d, %d]' % color)
 
 	image.unlock()
 	return result
 
+func sum_color(color: Array) -> int:
+	return color[0] + color[1] + color[2] + color[3]
+
 func find_transparency_color_index(color_table: Dictionary) -> int:
 	for color in color_table:
-		if color[3] == 0:
+		if sum_color(color) == 0:
 			return color_table[color]
 	return -1
 
 func find_transparency_color_index_for_quantized_image(color_table: Array) -> int:
 	for i in range(color_table.size()):
-		if color_table[i][0] + color_table[i][1] + color_table[i][2] + color_table[i][3] == 0:
+		if sum_color(color_table[i]) == 0:
 			return i
 	return -1
 
@@ -243,10 +279,16 @@ func make_sure_color_table_is_at_least_size_4(color_table: Array) -> Array:
 			result.append([0, 0, 0, 0])
 	return result
 
-func write_frame(image: Image,
-		frame_delay: float,
-		quantizator) -> void:
-	var delay_time: int = int(ceil(frame_delay / 0.01))
+func convert_image(image: Image, quantizator) -> ConvertionResult:
+	var result := ConvertionResult.new()
+
+	# check if image is of good format
+	if image.get_format() != Image.FORMAT_RGBA8:
+		return result.with_error_code(Error.BAD_IMAGE_FORMAT)
+
+	# check if image isn't empty
+	if image.is_empty():
+		return result.with_error_code(Error.EMPTY_IMAGE)
 
 	var found_color_table: Dictionary = find_color_table_if_has_less_than_256_colors(
 			image)
@@ -274,9 +316,29 @@ func write_frame(image: Image,
 		else:
 			transparency_color_index = find_transparency_color_index_for_quantized_image(quantization_result[1])
 
-	var color_table_indexes = color_table_to_indexes(color_table)
+	result.converted_image.image_converted_to_codes = image_converted_to_codes
+	result.converted_image.color_table = color_table
+	result.converted_image.transparency_color_index = transparency_color_index
+	result.converted_image.width = image.get_width()
+	result.converted_image.height = image.get_height()
+
+	return result.with_error_code(Error.OK)
+
+func write_frame(image: Image, frame_delay: float, quantizator) -> int:
+	var converted_image_result := convert_image(image, quantizator)
+	if converted_image_result.error != Error.OK:
+		return converted_image_result.error
+
+	var converted_image := converted_image_result.converted_image
+	return write_frame_from_conv_image(converted_image, frame_delay)
+
+func write_frame_from_conv_image(converted_image: ConvertedImage,
+		frame_delay: float) -> int:
+	var delay_time := calc_delay_time(frame_delay)
+
+	var color_table_indexes = color_table_to_indexes(converted_image.color_table)
 	var compressed_image_result: Array = lzw.compress_lzw(
-		image_converted_to_codes, color_table_indexes)
+		converted_image.image_converted_to_codes, color_table_indexes)
 	var compressed_image_data: PoolByteArray = compressed_image_result[0]
 	var lzw_min_code_size: int = compressed_image_result[1]
 
@@ -285,15 +347,17 @@ func write_frame(image: Image,
 	table_image_data_block.image_data = compressed_image_data
 
 	var local_color_table: LocalColorTable = LocalColorTable.new()
-	local_color_table.colors = color_table
+	local_color_table.colors = converted_image.color_table
 
-	var image_descriptor: ImageDescriptor = ImageDescriptor.new(
-			0, 0, image.get_width(), image.get_height(), local_color_table.get_size())
+	var image_descriptor: ImageDescriptor = ImageDescriptor.new(0, 0,
+			converted_image.width,
+			converted_image.height,
+			local_color_table.get_size())
 
 	var graphic_control_extension: GraphicControlExtension
-	if transparency_color_index != -1:
+	if converted_image.transparency_color_index != -1:
 		graphic_control_extension = GraphicControlExtension.new(
-				delay_time, true, transparency_color_index)
+				delay_time, true, converted_image.transparency_color_index)
 	else:
 		graphic_control_extension = GraphicControlExtension.new(
 				delay_time, false, 0)
@@ -302,6 +366,75 @@ func write_frame(image: Image,
 	data += image_descriptor.to_bytes()
 	data += local_color_table.to_bytes()
 	data += table_image_data_block.to_bytes()
+
+	return Error.OK
+
+func scale_conv_image(converted_image: ConvertedImage, scale_factor: int) -> ConvertedImage:
+	var result = ConvertedImage.new()
+
+	result.image_converted_to_codes = PoolByteArray([])
+	result.color_table = converted_image.color_table.duplicate()
+	result.transparency_color_index = converted_image.transparency_color_index
+	result.width = converted_image.width * scale_factor
+	result.height = converted_image.height * scale_factor
+
+	for y in range(converted_image.height):
+		var row := PoolByteArray([])
+		for x in range(converted_image.width):
+			for i in range(scale_factor):
+				row.append(converted_image.image_converted_to_codes[(y * converted_image.width) + x])
+		for i in range(scale_factor):
+			result.image_converted_to_codes += row
+		row = PoolByteArray([])
+
+	return result
+
+func write_frame_in_thread(args: Dictionary) -> ThreadWriteFrameResult:
+	var converted_image_result := convert_image(args['image'], args['quantizator'])
+	var result := ThreadWriteFrameResult.new()
+
+	if converted_image_result.error != Error.OK:
+		return result.with_error_code(converted_image_result.error)
+
+	var converted_image := converted_image_result.converted_image
+
+	var delay_time := calc_delay_time(args['frame_delay'])
+
+	var color_table_indexes = color_table_to_indexes(converted_image.color_table)
+	var compressed_image_result: Array = lzw.compress_lzw(
+		converted_image.image_converted_to_codes, color_table_indexes)
+	var compressed_image_data: PoolByteArray = compressed_image_result[0]
+	var lzw_min_code_size: int = compressed_image_result[1]
+
+	var table_image_data_block: ImageData = ImageData.new()
+	table_image_data_block.lzw_minimum_code_size = lzw_min_code_size
+	table_image_data_block.image_data = compressed_image_data
+
+	var local_color_table: LocalColorTable = LocalColorTable.new()
+	local_color_table.colors = converted_image.color_table
+
+	var image_descriptor: ImageDescriptor = ImageDescriptor.new(0, 0,
+			converted_image.width,
+			converted_image.height,
+			local_color_table.get_size())
+
+	var graphic_control_extension: GraphicControlExtension
+	if converted_image.transparency_color_index != -1:
+		graphic_control_extension = GraphicControlExtension.new(
+				delay_time, true, converted_image.transparency_color_index)
+	else:
+		graphic_control_extension = GraphicControlExtension.new(
+				delay_time, false, 0)
+
+	result.frame_data += graphic_control_extension.to_bytes()
+	result.frame_data += image_descriptor.to_bytes()
+	result.frame_data += local_color_table.to_bytes()
+	result.frame_data += table_image_data_block.to_bytes()
+
+	return result.with_error_code(Error.OK)
+
+func join_frame(frame_result: ThreadWriteFrameResult) -> void:
+	data += frame_result.frame_data
 
 func export_file_data() -> PoolByteArray:
 	return data + PoolByteArray([0x3b])
