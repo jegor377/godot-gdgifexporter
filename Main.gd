@@ -9,6 +9,8 @@ var median_cut = preload("res://gdgifexporter/quantization/median_cut.gd").new()
 
 var img1: Image
 var img2: Image
+var img3: Image
+var img4: Image
 
 var export_thread: Thread = Thread.new()
 var timer: float = 0
@@ -18,10 +20,16 @@ var count_mutex: Mutex = Mutex.new()
 func _ready():
 	img1 = Image.new()
 	img2 = Image.new()
-	img1.load('res://colors.png')
+	img3 = Image.new()
+	img4 = Image.new()
+	img1.load('res://half_transparent.png')
 	img1.convert(Image.FORMAT_RGBA8)
-	img2.load('res://one_color.png')
+	img2.load('res://two_colors.png')
 	img2.convert(Image.FORMAT_RGBA8)
+	img3.load('res://transparent.png')
+	img3.convert(Image.FORMAT_RGBA8)
+	img4.load('res://one_color.png')
+	img4.convert(Image.FORMAT_RGBA8)
 	var img_texture := ImageTexture.new()
 	img_texture.create_from_image(img1)
 	$CenterContainer/VBoxContainer/TextureRect.texture = img_texture
@@ -40,8 +48,10 @@ func export_thread_method(args: Dictionary):
 	should_count = true
 	count_mutex.unlock()
 	var exporter = gifexporter.new(img1.get_width(), img1.get_height())
-	exporter.write_frame(img1, 2, median_cut)
-	exporter.write_frame(img2, 3, median_cut)
+	exporter.write_frame(img1, 1, median_cut)
+	exporter.write_frame(img2, 1, median_cut)
+	exporter.write_frame(img3, 1, median_cut)
+	exporter.write_frame(img4, 1, median_cut)
 
 	print("DONE")
 	count_mutex.lock()
