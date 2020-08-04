@@ -1,48 +1,8 @@
 extends Node
 
-
-class PixelColor:
-	var r: int
-	var g: int
-	var b: int
-	var a: int
-
-	func _init(_r: int, _g: int, _b: int, _a: int):
-		r = _r
-		g = _g
-		b = _b
-		a = _a
-
-	func add(color: PixelColor) -> void:
-		r += color.r
-		g += color.g
-		b += color.b
-		a += color.a
-
-	func div(value: float) -> void:
-		if value == 0:
-			r = 0
-			g = 0
-			b = 0
-			a = 0
-		else:
-			r /= value
-			g /= value
-			b /= value
-			a /= value
-
-	func distance_to(color: PixelColor) -> float:
-		var d_r: float = r - color.r
-		var d_g: float = g - color.g
-		var d_b: float = b - color.b
-		var d_a: float = a - color.a
-		return (d_r * d_r) + (d_g * d_g) + (d_b * d_b) + (d_a * d_a)
-
-	func to_string() -> String:
-		return 'PixelColor: r = %d, g = %d, b = %d, a = %d\n' % [r, g, b, a]
-
 func how_many_divisions(colors_count: int) -> int:
 	return int(ceil( pow(colors_count, 1.0 / 4.0) ))
+
 
 func get_colors(colors_count: int) -> Array:
 	var divisions_count: int = how_many_divisions(colors_count)
@@ -52,85 +12,50 @@ func get_colors(colors_count: int) -> Array:
 		for b in range(divisions_count):
 			for g in range(divisions_count):
 				for r in range(divisions_count):
-					colors.append(PixelColor.new(
+					colors.append([Vector3(
 							(255.0 / divisions_count) * r,
 							(255.0 / divisions_count) * g,
-							(255.0 / divisions_count) * b,
-							(255.0 / divisions_count) * a))
+							(255.0 / divisions_count) * b),
+							(255.0 / divisions_count) * a])
 
 	return colors
 
-func change_colors_thread(args: Dictionary) -> PoolByteArray:
-	# args = data: PoolByteArray, average_colors: Array, start: int, stop: int
-	var result_image_data: PoolByteArray = PoolByteArray([])
-	var start: int = args['start'] * 4
-	var stop: int = args['stop'] * 4
-	var data: PoolByteArray = args['data']
-	var average_colors: Array = args['average_colors']
-
-	# Change colors to average colors
-	var i: int = start
-	while i < stop:
-		var r: int = data[i]
-		var g: int = data[i + 1]
-		var b: int = data[i + 2]
-		var a: int = data[i + 3]
-		var color: PixelColor = PixelColor.new(r, g, b, a)
-		var nearest_color: int = -1
-
-		for ci in range(average_colors.size()):
-			if nearest_color == -1:
-				nearest_color = ci
-			if color.distance_to(average_colors[ci]) < color.distance_to(average_colors[nearest_color]):
-				nearest_color = ci
-
-		result_image_data.append(nearest_color)
-
-		i += 4
-
-	return result_image_data
 
 func change_colors(image: Image, average_colors: Array) -> PoolByteArray:
 	var result_image_data: PoolByteArray
 	var image_data: PoolByteArray = image.get_data()
+	var table: Dictionary = {}
 
-	var image_pixels_count: int = image_data.size() / 4
-	var image_pixels_count_per_chunk: int = int(ceil(float(image_pixels_count) / 4.0))
+	for i in range(0, image_data.size(), 4):
+		var v3: Vector3 = Vector3(floor(image_data[i]), floor(image_data[i + 1]), floor(image_data[i + 2]))
+		var nearest_color: int = 0
+		if v3 in table:
+			nearest_color = table[v3]
+		else:
+			for ci in range(1, average_colors.size()):
+				if v3.distance_squared_to(average_colors[ci][0]) < v3.distance_squared_to(average_colors[nearest_color][0]):
+					nearest_color = ci
+			table[v3] = nearest_color
 
-	var thread_1: Thread = Thread.new()
-	var thread_2: Thread = Thread.new()
-	var thread_3: Thread = Thread.new()
-	var thread_4: Thread = Thread.new()
-
-	thread_1.start(self, "change_colors_thread", {
-			'data': image_data,
-			'average_colors': average_colors,
-			'start': 0,
-			'stop': image_pixels_count_per_chunk})
-	thread_2.start(self, "change_colors_thread", {
-			'data': image_data,
-			'average_colors': average_colors,
-			'start': image_pixels_count_per_chunk,
-			'stop': 2 * image_pixels_count_per_chunk})
-	thread_3.start(self, "change_colors_thread", {
-			'data': image_data,
-			'average_colors': average_colors,
-			'start': 2 * image_pixels_count_per_chunk,
-			'stop': 3 * image_pixels_count_per_chunk})
-	thread_4.start(self, "change_colors_thread", {
-			'data': image_data,
-			'average_colors': average_colors,
-			'start': 3 * image_pixels_count_per_chunk,
-			'stop': image_pixels_count})
-
-	var thread_1_res: PoolByteArray = thread_1.wait_to_finish()
-	var thread_2_res: PoolByteArray = thread_2.wait_to_finish()
-	var thread_3_res: PoolByteArray = thread_3.wait_to_finish()
-	var thread_4_res: PoolByteArray = thread_4.wait_to_finish()
-
-	result_image_data = thread_1_res + thread_2_res + thread_3_res + thread_4_res
+		result_image_data.append(nearest_color)
 
 	return result_image_data
+
+func find_nearest_color(palette_color: Vector3, image_data: PoolByteArray, palette: Array) -> Array:
+	var nearest_color = null
+	var nearest_alpha = null
+	for i in range(0, image_data.size(), 4):
+			var color = Vector3(image_data[i], image_data[i + 1], image_data[i + 2])
+			if (nearest_color == null) or (palette_color.distance_squared_to(color) < palette_color.distance_squared_to(nearest_color)):
+				nearest_color = color
+				nearest_alpha = image_data[i + 3]
+	return [nearest_color, nearest_alpha]
+
+func find_color(color: Array, palette: Array) -> int:
+	for i in range(palette.size()):
+		if palette[i][0] == color[0] and palette[i][1] == color[1]:
+			return i
+	return -1
 
 # moves every color from palette colors to the nearest found color in image
 func enhance_colors(image: Image, palette_colors: Array) -> Array:
@@ -138,27 +63,34 @@ func enhance_colors(image: Image, palette_colors: Array) -> Array:
 	var image_data: PoolByteArray = image.get_data()
 
 	for c in palette_colors:
-		var nearest_color: PixelColor = null
-		var i: int = 0
-		while i < image_data.size() - 4:
-			var color: PixelColor = PixelColor.new(
-					image_data[i],
-					image_data[i + 1],
-					image_data[i + 2],
-					image_data[i + 3])
+		var nearest_color: Array = []
+		var tmp_palette: Array = palette_colors.duplicate(true) # deep copy
+		while true:
+			if tmp_palette.empty():
+				break
+			nearest_color = find_nearest_color(c[0], image_data, tmp_palette)
+			if find_color(nearest_color, result_palette) == -1:
+				break # we've found nearest color
+			else:
+				var nearest_color_in_tmp_index: int = find_color(nearest_color, tmp_palette)
+				if nearest_color_in_tmp_index != -1:
+					tmp_palette.remove(nearest_color_in_tmp_index)
+				else:
+					nearest_color = []
+					break
 
-			if (nearest_color == null) or (c.distance_to(color) < c.distance_to(nearest_color)):
-				nearest_color = color
+		if not nearest_color.empty():
+			result_palette.append(nearest_color)
 
-			i += 4
-		result_palette.append(nearest_color)
 	return result_palette
+
 
 func convert_pixel_colors_to_array_colors(colors: Array) -> Array:
 	var result := []
 	for v in colors:
-		result.append([v.r, v.g, v.b, v.a])
+		result.append([v[0].x, v[0].y, v[0].z, v[1]])
 	return result
+
 
 func quantize_and_convert_to_codes(image: Image) -> Array:
 	image.lock()
@@ -170,7 +102,6 @@ func quantize_and_convert_to_codes(image: Image) -> Array:
 	tmp_image.lock()
 	colors = enhance_colors(tmp_image, colors)
 	tmp_image.unlock()
-
 	var result: PoolByteArray = change_colors(image, colors)
 
 	image.unlock()
