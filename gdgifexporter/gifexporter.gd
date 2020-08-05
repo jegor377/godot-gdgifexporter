@@ -133,19 +133,18 @@ class ImageData:
 
 	func to_bytes() -> PoolByteArray:
 		var result: PoolByteArray = PoolByteArray([])
-		var image_data_stream: PoolByteArray = PoolByteArray([]) + image_data
-
 		result.append(lzw_minimum_code_size)
 
 		var block_size_index: int = 0
 		var i: int = 0
-		while not image_data_stream.empty():
+		var data_index: int = 0
+		while data_index < image_data.size():
 			if i == 0:
 				result.append(0)
 				block_size_index = result.size() - 1
-			result.append(image_data_stream[0])
-			image_data_stream.remove(0)
+			result.append(image_data[data_index])
 			result[block_size_index] += 1
+			data_index += 1
 			i += 1
 			if i == 254:
 				i = 0
