@@ -388,55 +388,5 @@ func scale_conv_image(converted_image: ConvertedImage, scale_factor: int) -> Con
 
 	return result
 
-func write_frame_in_thread(args: Dictionary) -> ThreadWriteFrameResult:
-	var converted_image_result := convert_image(args['image'], args['quantizator'])
-	var result := ThreadWriteFrameResult.new()
-
-	if converted_image_result.error != Error.OK:
-		return result.with_error_code(converted_image_result.error)
-
-	var converted_image := converted_image_result.converted_image
-
-	if 'scale_factor' in args:
-		converted_image = scale_conv_image(converted_image, args['scale_factor'])
-
-	var delay_time := calc_delay_time(args['frame_delay'])
-
-	var color_table_indexes = color_table_to_indexes(converted_image.color_table)
-	var compressed_image_result: Array = lzw.compress_lzw(
-		converted_image.image_converted_to_codes, color_table_indexes)
-	var compressed_image_data: PoolByteArray = compressed_image_result[0]
-	var lzw_min_code_size: int = compressed_image_result[1]
-
-	var table_image_data_block: ImageData = ImageData.new()
-	table_image_data_block.lzw_minimum_code_size = lzw_min_code_size
-	table_image_data_block.image_data = compressed_image_data
-
-	var local_color_table: LocalColorTable = LocalColorTable.new()
-	local_color_table.colors = converted_image.color_table
-
-	var image_descriptor: ImageDescriptor = ImageDescriptor.new(0, 0,
-			converted_image.width,
-			converted_image.height,
-			local_color_table.get_size())
-
-	var graphic_control_extension: GraphicControlExtension
-	if converted_image.transparency_color_index != -1:
-		graphic_control_extension = GraphicControlExtension.new(
-				delay_time, true, converted_image.transparency_color_index)
-	else:
-		graphic_control_extension = GraphicControlExtension.new(
-				delay_time, false, 0)
-
-	result.frame_data += graphic_control_extension.to_bytes()
-	result.frame_data += image_descriptor.to_bytes()
-	result.frame_data += local_color_table.to_bytes()
-	result.frame_data += table_image_data_block.to_bytes()
-
-	return result.with_error_code(Error.OK)
-
-func join_frame(frame_result: ThreadWriteFrameResult) -> void:
-	data += frame_result.frame_data
-
 func export_file_data() -> PoolByteArray:
 	return data + PoolByteArray([0x3b])
