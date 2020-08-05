@@ -5,7 +5,7 @@ This is gif exporter for godot made entirely using GDScript. This is based on [g
 First, if you use code directly cloned from this repo, grab gdgifexporter directory into your project and preload gifexporter.gd file. Although, I suggest you using code from release package.
 
 ## Use examples
-### Simple way (no threading)
+### Simple way
 ```gdscript
 extends Node2D
 
@@ -38,7 +38,7 @@ func _ready():
 	file.close()
 ```
 
-### Convert image, scale and then save (no threading)
+### Convert image, scale and then save
 ```gdscript
 extends Node2D
 
@@ -70,67 +70,6 @@ func _ready():
 	else:
 		# else print error to the screen with error code
 		push_error("Error: %d" % [conv_img_res.error])
-
-	# when you have exported all frames of animation you, then you can save data into file
-	var file: File = File.new()
-	# open new file with write privlige
-	file.open('user://result.gif', File.WRITE)
-	# save data stream into file
-	file.store_buffer(exporter.export_file_data())
-	# close the file
-	file.close()
-```
-
-### Threading way
-```gdscript
-extends Node2D
-
-
-# load gif exporter module
-var gifexporter = preload("res://gdgifexporter/gifexporter.gd")
-# load and initialize quantization method that you want to use
-var median_cut = preload("res://gdgifexporter/quantization/median_cut.gd").new()
-
-
-func _ready():
-	var images := []
-	# load images
-	for i in range(4):
-		var new_img := Image.new()
-		new_img.load('res://image%d.png' % [i])
-		# remember to use this image format when exporting
-		new_img.convert(Image.FORMAT_RGBA8)
-		images.append(new_img)
-	
-
-	# initialize exporter object with width and height of gif canvas
-	var exporter = gifexporter.new(images[0].get_width(), images[0].get_height())
-	# make thread for every export process
-	var export_threads: Array = []
-	for image in images:
-		var img_export_thread := Thread.new()
-		img_export_thread.start(exporter, "write_frame_in_thread", {
-				'image': image,
-				'frame_delay': 1,
-				'quantizator': median_cut})
-		# if you want to scale the image while in threading mode then just add scale_factor argument to arguments dictionary
-		# Remember to change canvas size if you want to do this.
-		# img_export_thread.start(exporter, "write_frame_in_thread", {
-		# 		'image': image,
-		# 		'frame_delay': 1, # frame delay in seconds
-		# 		'quantizator': median_cut, # quantization method
-		#		'scale_factor': 2})
-		export_threads.append(img_export_thread)
-	
-	# get results from threads one by one
-	for img_export_thread in export_threads:
-		var result = img_export_thread.wait_to_finish()
-		# if result error value says everything went OK then join result data to data stream of exporter
-		if result.error == exporter.Error.OK:
-			exporter.join_frame(result)
-		else:
-			# else print error to user with error code
-			push_error('export_thread_method: Error while exporting. Code %d.' % [result.error])
 
 	# when you have exported all frames of animation you, then you can save data into file
 	var file: File = File.new()
