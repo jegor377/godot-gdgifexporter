@@ -397,6 +397,9 @@ func write_frame_in_thread(args: Dictionary) -> ThreadWriteFrameResult:
 
 	var converted_image := converted_image_result.converted_image
 
+	if 'scale_factor' in args:
+		converted_image = scale_conv_image(converted_image, args['scale_factor'])
+
 	var delay_time := calc_delay_time(args['frame_delay'])
 
 	var color_table_indexes = color_table_to_indexes(converted_image.color_table)

@@ -47,14 +47,14 @@ func export_thread_method(args: Dictionary):
 	count_mutex.lock()
 	should_count = true
 	count_mutex.unlock()
-	var exporter = gifexporter.new(img1.get_width(), img1.get_height())
+	var exporter = gifexporter.new(img1.get_width() * 2, img1.get_height() * 2)
 #	var conv_img_res = exporter.convert_image(img1, median_cut)
 #	if conv_img_res.error == exporter.Error.OK:
 #		var conv_img = exporter.scale_conv_image(conv_img_res.converted_image, 10)
 #		exporter.write_frame_from_conv_image(conv_img, 1)
 #	else:
 #		push_error("Error: %d" % [conv_img_res.error])
-#	exporter.write_frame(img1, 1, enhanced_uniform_quantizator)
+#	exporter.write_frame(img1, 1, median_cut)
 #	exporter.write_frame(img2, 1, enhanced_uniform_quantizator)
 #	exporter.write_frame(img3, 1, enhanced_uniform_quantizator)
 #	exporter.write_frame(img4, 1, enhanced_uniform_quantizator)
