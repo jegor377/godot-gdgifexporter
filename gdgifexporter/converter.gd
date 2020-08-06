@@ -18,7 +18,7 @@ func setup(image: Image, colors: Array) -> PoolByteArray:
 	texture.create_from_image(image)
 	VisualServer.canvas_item_add_texture_rect(ci_rid, Rect2(Vector2(0, 0), image.get_size()), texture)
 
-	var shader = preload("res://gdgifexporter/lookup_similar.shader")
+	var shader = preload("./lookup_similar.shader")
 	var mat_rid = VisualServer.material_create()
 	VisualServer.material_set_shader(mat_rid, shader.get_rid())
 	var lut = Image.new()
