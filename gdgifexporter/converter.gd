@@ -48,5 +48,11 @@ func _convert(image: Image, colors: Array) -> PoolByteArray:
 	VisualServer.viewport_set_vflip(vp, true)
 	VisualServer.force_draw(false)
 	image = VisualServer.texture_get_data(VisualServer.viewport_get_texture(vp))
+
+	VisualServer.free_rid(vp)
+	VisualServer.free_rid(canvas)
+	VisualServer.free_rid(ci_rid)
+	VisualServer.free_rid(mat_rid)
+
 	image.convert(Image.FORMAT_R8)
 	return image.get_data()
