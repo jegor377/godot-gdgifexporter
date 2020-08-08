@@ -94,7 +94,7 @@ Some methods give error codes. These are used error codes and their meaning:
 - EMPTY_IMAGE = 1 (Passed image object has no data in it)
 - BAD_IMAGE_FORMAT = 2 (You are using different image format than FORMAT_RGBA8)
 
-# Contriburors
+# Contributors
 If you want to contribute to this code then go ahead! :) Huge thanks to Kinwailo and novhack. This project wouldn't work without their help! :D
 
 # Used external libs
