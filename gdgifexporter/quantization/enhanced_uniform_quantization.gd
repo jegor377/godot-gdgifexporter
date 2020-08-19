@@ -1,4 +1,4 @@
-extends Node
+extends Reference
 
 func how_many_divisions(colors_count: int) -> int:
 	return int(ceil( pow(colors_count, 1.0 / 4.0) ))
