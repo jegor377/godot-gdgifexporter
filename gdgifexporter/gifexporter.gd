@@ -3,7 +3,6 @@ extends Reference
 
 var little_endian = preload('./little_endian.gd').new()
 var lzw = preload('./gif-lzw/lzw.gd').new()
-var used_proc_count: int = 4
 
 
 class GraphicControlExtension:
@@ -169,14 +168,6 @@ class ConvertionResult:
 		error = _error
 		return self
 
-class ThreadWriteFrameResult:
-	var frame_data: PoolByteArray = PoolByteArray([])
-	var error: int = Error.OK
-
-	func with_error_code(_error: int) -> ThreadWriteFrameResult:
-		error = _error
-		return self
-
 enum Error {
 	OK = 0,
 	EMPTY_IMAGE = 1,
@@ -296,8 +287,10 @@ func convert_image(image: Image, quantizator) -> ConvertionResult:
 	var transparency_color_index: int = -1
 	var color_table: Array
 	if found_color_table.size() <= 256: # we don't need to quantize the image.
-		# exporter images always try to include transparency because I'm lazy.
+		# try to find transparency color index.
 		transparency_color_index = find_transparency_color_index(found_color_table)
+		# if didn't found transparency color index but there is atleast one
+		# place for this color then add it artificially.
 		if transparency_color_index == -1 and found_color_table.size() <= 255:
 			found_color_table[[0, 0, 0, 0]] = found_color_table.size()
 			transparency_color_index = found_color_table.size() - 1
@@ -322,14 +315,6 @@ func convert_image(image: Image, quantizator) -> ConvertionResult:
 	result.converted_image.height = image.get_height()
 
 	return result.with_error_code(Error.OK)
-
-func write_frame(image: Image, frame_delay: float, quantizator) -> int:
-	var converted_image_result := convert_image(image, quantizator)
-	if converted_image_result.error != Error.OK:
-		return converted_image_result.error
-
-	var converted_image := converted_image_result.converted_image
-	return write_frame_from_conv_image(converted_image, frame_delay)
 
 func write_frame_from_conv_image(converted_image: ConvertedImage,
 		frame_delay: float) -> int:
@@ -367,6 +352,14 @@ func write_frame_from_conv_image(converted_image: ConvertedImage,
 	data += table_image_data_block.to_bytes()
 
 	return Error.OK
+
+func write_frame(image: Image, frame_delay: float, quantizator) -> int:
+	var converted_image_result := convert_image(image, quantizator)
+	if converted_image_result.error != Error.OK:
+		return converted_image_result.error
+
+	var converted_image := converted_image_result.converted_image
+	return write_frame_from_conv_image(converted_image, frame_delay)
 
 func scale_conv_image(converted_image: ConvertedImage, scale_factor: int) -> ConvertedImage:
 	var result = ConvertedImage.new()
