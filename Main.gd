@@ -2,6 +2,7 @@ extends Control
 
 
 var gifexporter = preload("res://gdgifexporter/gifexporter.gd")
+var gifimporter = preload("res://gdgifexporter/gifimporter.gd")
 var enhanced_uniform_quantizator = preload("res://gdgifexporter/quantization/enhanced_uniform_quantization.gd").new()
 var median_cut = preload("res://gdgifexporter/quantization/median_cut.gd").new()
 
@@ -70,3 +71,18 @@ func _on_Button_pressed():
 			export_thread.wait_to_finish()
 		export_thread = Thread.new()
 		export_thread.start(self, 'export_thread_method', {})
+
+
+func _on_ImportButton_pressed():
+	var import_file: File = File.new()
+	import_file.open('res://images/for_import/result.gif', File.READ)
+	if not import_file.is_open():
+		printerr("Couldn't open the file!")
+		return
+	
+	var importer = gifimporter.new(import_file)
+	var result = importer.import()
+	if result != gifimporter.Error.OK:
+		printerr('An error has occured while importing: %d' % [result])
+	
+	import_file.close()

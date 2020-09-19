@@ -18,10 +18,16 @@ _global_script_classes=[ {
 "class": "GIFExporter",
 "language": "GDScript",
 "path": "res://gdgifexporter/gifexporter.gd"
+}, {
+"base": "GIFDataTypes",
+"class": "GIFImporter",
+"language": "GDScript",
+"path": "res://gdgifexporter/gifimporter.gd"
 } ]
 _global_script_class_icons={
 "GIFDataTypes": "",
-"GIFExporter": ""
+"GIFExporter": "",
+"GIFImporter": ""
 }
 
 [application]

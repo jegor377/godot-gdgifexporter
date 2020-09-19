@@ -42,8 +42,8 @@ func _init(_width: int, _height: int):
 	var background_color_index: int = 0
 	var pixel_aspect_ratio: int = 0
 
-	data += little_endian.int_to_2bytes(width)
-	data += little_endian.int_to_2bytes(height)
+	data += little_endian.int_to_word(width)
+	data += little_endian.int_to_word(height)
 	data.append(packed_fields)
 	data.append(background_color_index)
 	data.append(pixel_aspect_ratio)

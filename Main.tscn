@@ -18,23 +18,25 @@ __meta__ = {
 }
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
-margin_left = 491.0
-margin_top = 286.0
-margin_right = 532.0
-margin_bottom = 314.0
+margin_left = 484.0
+margin_top = 276.0
+margin_right = 540.0
+margin_bottom = 324.0
 
 [node name="Button" type="Button" parent="CenterContainer/VBoxContainer"]
-margin_right = 41.0
+margin_right = 56.0
 margin_bottom = 20.0
-text = "Start"
+text = "Export"
+
+[node name="ImportButton" type="Button" parent="CenterContainer/VBoxContainer"]
+margin_top = 24.0
+margin_right = 56.0
+margin_bottom = 44.0
+text = "Import"
 
 [node name="TextureRect" type="TextureRect" parent="CenterContainer/VBoxContainer"]
-margin_top = 24.0
-margin_right = 41.0
-margin_bottom = 24.0
-
-[node name="TextureRect2" type="TextureRect" parent="CenterContainer/VBoxContainer"]
-margin_top = 28.0
-margin_right = 41.0
-margin_bottom = 28.0
+margin_top = 48.0
+margin_right = 56.0
+margin_bottom = 48.0
 [connection signal="pressed" from="CenterContainer/VBoxContainer/Button" to="." method="_on_Button_pressed"]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/ImportButton" to="." method="_on_ImportButton_pressed"]

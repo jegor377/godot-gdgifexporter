@@ -28,7 +28,7 @@ class GraphicControlExtension:
 
 		result.append(block_size)
 		result.append(packed_fields)
-		result += little_endian.int_to_2bytes(delay_time)
+		result += little_endian.int_to_word(delay_time)
 		result.append(transparent_color_index)
 
 		result.append(0)
@@ -59,10 +59,10 @@ class ImageDescriptor:
 		var result: PoolByteArray = PoolByteArray([])
 
 		result.append(image_separator)
-		result += little_endian.int_to_2bytes(image_left_position)
-		result += little_endian.int_to_2bytes(image_top_position)
-		result += little_endian.int_to_2bytes(image_width)
-		result += little_endian.int_to_2bytes(image_height)
+		result += little_endian.int_to_word(image_left_position)
+		result += little_endian.int_to_word(image_top_position)
+		result += little_endian.int_to_word(image_width)
+		result += little_endian.int_to_word(image_height)
 		result.append(packed_fields)
 
 		return result
