@@ -7,16 +7,20 @@ class Frame:
 	var delay: float
 	var x: int
 	var y: int
+	var w: int
+	var h: int
 
 enum Error {
 	OK,
 	FILE_IS_EMPTY,
 	FILE_SMALLER_MINIMUM,
-	NOT_A_SUPPORTED_FILE
+	NOT_A_SUPPORTED_FILE,
+	CANNOT_HANDLE_INTERLACED_FRAMES
 }
 
 
 var little_endian = preload("res://gdgifexporter/little_endian.gd").new()
+var lzw = preload("res://gdgifexporter/gif-lzw/lzw.gd")
 
 var header: PoolByteArray
 var logical_screen_descriptor: PoolByteArray
@@ -74,7 +78,60 @@ func load_global_color_table() -> void:
 			import_file.get_8()
 		])
 
-func handle_naked_image_descriptor() -> void:
+func load_local_color_table(size: int) -> Array:
+	var result: Array = []
+	for i in range(size):
+		result.append([
+			import_file.get_8(),
+			import_file.get_8(),
+			import_file.get_8()
+		])
+	return result
+
+func color_table_to_index_table(color_table: Array) -> Array:
+	var result: Array = []
+	for i in range(color_table.size()):
+		result.append(i)
+	return result
+
+func add_alpha_channel(original_image_data: PoolByteArray) -> PoolByteArray:
+	var result: PoolByteArray = PoolByteArray([])
+	
+	for i in range(original_image_data.size()):
+		result.append(original_image_data[i])
+		if i % 3 == 0:
+			result.append(255) # all have alpha equal to 255
+	
+	return result
+
+func load_interlaced_frame_image(color_table: Array, w: int, h: int) -> Image:
+	return Image.new()
+
+func load_frame_image(color_table: Array, w: int, h: int) -> Image:
+	var lzw_min_code_size: int = import_file.get_8()
+	var image_data: PoolByteArray = PoolByteArray([])
+	var result_image: Image = Image.new()
+	
+	# loading data sub-blocks
+	while true:
+		var block_size: int = import_file.get_8()
+		if block_size == 0:
+			break
+		for i in range(block_size):
+			image_data.append(import_file.get_8())
+	
+	var decompressed_image_data: PoolByteArray = lzw.decompress_lzw(
+			image_data,
+			lzw_min_code_size,
+			PoolByteArray(color_table_to_index_table(color_table)))
+	
+	result_image.create_from_data(w, h, 
+			false, Image.FORMAT_RGBA8,
+			add_alpha_channel(decompressed_image_data))
+	
+	return result_image
+
+func handle_naked_image_descriptor() -> int:
 	var x: int = little_endian.word_to_int(import_file.get_buffer(2))
 	var y: int = little_endian.word_to_int(import_file.get_buffer(2))
 	var w: int = little_endian.word_to_int(import_file.get_buffer(2))
@@ -86,9 +143,54 @@ func handle_naked_image_descriptor() -> void:
 	# Skipping sort flag
 	# Skipping reserved bits
 	var size_of_local_color_table: int = pow(2, (packed_field & 0b111) + 1)
+	var local_color_table: Array = []
+	var color_table: Array
+	var image: Image
+	
+	if has_local_color_table:
+		local_color_table = load_local_color_table(size_of_local_color_table)
+		color_table = local_color_table
+	else:
+		color_table = global_color_table
+	
+	if is_interlace_flag_on:
+		#load_interlaced_frame_image(color_table)
+		return Error.CANNOT_HANDLE_INTERLACED_FRAMES
+	else:
+		image = load_frame_image(color_table, w, h)
+	
+	var new_frame = Frame.new()
+	new_frame.image = image
+	# because Image Descriptor didn't have Graphics Extension before it
+	# with frame delay value, we want to set it as -1 because we want to tell
+	# end user that this frame has no delay.
+	new_frame.delay = -1
+	new_frame.x = x
+	new_frame.y = y
+	new_frame.w = w
+	new_frame.h = h
+	
+	return Error.OK
 
-func handle_extension_introducer() -> void:
-	pass
+func handle_graphics_extension() -> int:
+	return Error.OK
+
+func handle_application_extension() -> int:
+	return Error.OK
+
+func handle_comment_extension() -> int:
+	return Error.OK
+
+func handle_extension_introducer() -> int:
+	var extension_label: int = import_file.get_8()
+	match extension_label:
+		0xF9: # Graphics Extension
+			return handle_graphics_extension()
+		0xFF: # Application Extension
+			return handle_application_extension()
+		0xFE: # Comment Extension
+			return handle_comment_extension()
+	return Error.OK
 
 func import() -> int:
 	# if file is empty return
@@ -115,12 +217,15 @@ func import() -> int:
 	# LOADING FRAMES LOOP
 	while not import_file.eof_reached():
 		var block_intrudoction: int = import_file.get_8()
+		var error: int
 		match block_intrudoction:
 			0x2C: # Image Descriptor
-				handle_naked_image_descriptor()
+				error = handle_naked_image_descriptor()
 			0x21: # Extension Introducer
-				handle_extension_introducer()
+				error = handle_extension_introducer()
 			0x3B: # Trailer
 				break
+		if error != Error.OK:
+			return error
 	
 	return Error.OK
