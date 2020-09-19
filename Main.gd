@@ -5,6 +5,7 @@ var gifexporter = preload("res://gdgifexporter/gifexporter.gd")
 var enhanced_uniform_quantizator = preload("res://gdgifexporter/quantization/enhanced_uniform_quantization.gd").new()
 var median_cut = preload("res://gdgifexporter/quantization/median_cut.gd").new()
 
+var img_path = 'res://images/for_export'
 var img1: Image
 var img2: Image
 var img3: Image
@@ -20,13 +21,13 @@ func _ready():
 	img2 = Image.new()
 	img3 = Image.new()
 	img4 = Image.new()
-	img1.load('res://colors2.png')
+	img1.load(img_path.plus_file('colors2.png'))
 	img1.convert(Image.FORMAT_RGBA8)
-	img2.load('res://colors.png')
+	img2.load(img_path.plus_file('colors.png'))
 	img2.convert(Image.FORMAT_RGBA8)
-	img3.load('res://one_color.png')
+	img3.load(img_path.plus_file('one_color.png'))
 	img3.convert(Image.FORMAT_RGBA8)
-	img4.load('res://half_transparent.png')
+	img4.load(img_path.plus_file('half_transparent.png'))
 	img4.convert(Image.FORMAT_RGBA8)
 	var img_texture := ImageTexture.new()
 	img_texture.create_from_image(img1)

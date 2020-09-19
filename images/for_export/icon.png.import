@@ -2,15 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-path="res://.import/two_colors.png-afa35caee370b4d4b30c0ad446ea97de.stex"
+path="res://.import/icon.png-75b21e6552aa56c2b7cbe5867cf41b46.stex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://two_colors.png"
-dest_files=[ "res://.import/two_colors.png-afa35caee370b4d4b30c0ad446ea97de.stex" ]
+source_file="res://images/for_export/icon.png"
+dest_files=[ "res://.import/icon.png-75b21e6552aa56c2b7cbe5867cf41b46.stex" ]
 
 [params]
 
