@@ -79,7 +79,7 @@ func _on_ImportButton_pressed():
 	if not import_file.is_open():
 		printerr("Couldn't open the file!")
 		return
-	
+
 	var importer = gifimporter.new(import_file)
 	var result = importer.import()
 	if result != gifimporter.Error.OK:

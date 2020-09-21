@@ -113,6 +113,7 @@ func compress_lzw(image: PoolByteArray, colors: PoolByteArray) -> Array:
 				# warning-ignore:return_value_discarded
 				code_table.add(new_index_buffer)
 			else:
+				var a = code_table.find(index_buffer)
 				# if we exceeded 4095 index (code table is full), we should
 				# output Clear Code and reset everything.
 				binary_code_stream.write_bits(clear_code_index, current_code_size)
@@ -149,7 +150,7 @@ func decompress_lzw(code_stream_data: PoolByteArray, min_code_size: int, colors:
 
 	# CODE is an index of code table, {CODE} is sequence inside
 	# code table with index CODE. The same goes for PREVCODE.
-
+	
 	# Remove first Clear Code from stream. We don't need it.
 	binary_code_stream.remove_bits(current_code_size)
 
@@ -167,6 +168,9 @@ func decompress_lzw(code_stream_data: PoolByteArray, min_code_size: int, colors:
 		if code == clear_code_index:
 			code_table = initialize_color_code_table(colors)
 			current_code_size = min_code_size + 1
+			code = binary_code_stream.read_bits(current_code_size)
+			prevcode = code
+			index_stream.append(code)
 			code = binary_code_stream.read_bits(current_code_size)
 		elif code == clear_code_index + 1: # Stop when detected EOI Code.
 			break
@@ -195,7 +199,9 @@ func decompress_lzw(code_stream_data: PoolByteArray, min_code_size: int, colors:
 			prevcode = code
 
 		# Detect when we should increase current code size and increase it.
-		var new_code_size_candidate: int = get_bits_number_for(code_table.counter)
+		# I suspected that the current_code_size was changing when it shouldn't
+		# (before it could read clear code) so I made it never exceed over 12.
+		var new_code_size_candidate: int = get_bits_number_for(code_table.counter) % 13
 		if new_code_size_candidate > current_code_size:
 			current_code_size = new_code_size_candidate
 
