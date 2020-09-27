@@ -1,6 +1,12 @@
 # Gif exporter for Godot made entirely in GDScript
 This is gif exporter for godot made entirely using GDScript. This is based on [godot-gifexporter](https://github.com/novhack/godot-gifexporter).
 
+<p align="center">
+	<a href="https://github.com/godotengine/awesome-godot">
+		<img src="https://awesome.re/mentioned-badge.svg" alt="Mentioned in Awesome Godot" />
+	</a>
+</p>
+
 # Usage
 First, if you use code directly cloned from this repo, grab gdgifexporter directory into your project and preload gifexporter.gd file. Although, I suggest you using code from release package.
 
