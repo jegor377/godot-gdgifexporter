@@ -190,13 +190,16 @@ func write_frame_from_conv_image(converted_image: ConvertedImage,
 			converted_image.height,
 			local_color_table.get_size())
 
-	var graphic_control_extension: GraphicControlExtension
+	var graphic_control_extension: GraphicControlExtension = GraphicControlExtension.new()
 	if converted_image.transparency_color_index != -1:
-		graphic_control_extension = GraphicControlExtension.new(
-				delay_time, true, converted_image.transparency_color_index)
-	else:
-		graphic_control_extension = GraphicControlExtension.new(
-				delay_time, false, 0)
+		graphic_control_extension.delay_time = frame_delay
+		graphic_control_extension.uses_transparency = true
+		graphic_control_extension.transparent_color_index = converted_image.transparency_color_index
+		graphic_control_extension.disposal_method = DisposalMethod.RESTORE_TO_BACKGROUND
+	else: # has no trasnparency
+		graphic_control_extension.delay_time = frame_delay
+		graphic_control_extension.uses_transparency = false
+		graphic_control_extension.transparent_color_index = 0
 
 	data += graphic_control_extension.to_bytes()
 	data += image_descriptor.to_bytes()

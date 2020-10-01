@@ -5,6 +5,7 @@ extends GIFDataTypes
 class Frame:
 	var image: Image
 	var delay: float
+	var disposal_method: int
 	var x: int
 	var y: int
 	var w: int
@@ -18,6 +19,10 @@ enum Error {
 }
 
 
+const R: int = 0
+const G: int = 1
+const B: int = 2
+
 var little_endian = preload("res://gdgifexporter/little_endian.gd").new()
 var lzw = preload("res://gdgifexporter/gif-lzw/lzw.gd").new()
 
@@ -29,6 +34,8 @@ var frames: Array
 var background_color_index: int
 var pixel_aspect_ratio: int
 var global_color_table: Array
+
+var last_graphic_control_extension: GraphicControlExtension = null
 
 
 func _init(file: File):
@@ -93,30 +100,23 @@ func color_table_to_index_table(color_table: Array) -> Array:
 		result.append(i)
 	return result
 
-func add_alpha_channel(original_image_data: PoolByteArray) -> PoolByteArray:
+func load_data_subblocks() -> PoolByteArray:
 	var result: PoolByteArray = PoolByteArray([])
-	result.resize(original_image_data.size() / 3 * 4)
-	
-	var j: int = 0
-	for i in range(original_image_data.size()):
-		result[j] = original_image_data[i]
-		j += 1
-		if i % 3 == 0:
-			result[j] = 255 # all have alpha equal to 255
-			j += 1
-	
-	return result
 
-func load_image_data(color_table: Array) -> PoolByteArray:
-	var lzw_min_code_size: int = import_file.get_8()
-	var image_data: PoolByteArray = PoolByteArray([])
-	
-	# loading data sub-blocks
 	while true:
 		var block_size: int = import_file.get_8()
 		if block_size == 0:
 			break
-		image_data.append_array(import_file.get_buffer(block_size))
+		result.append_array(import_file.get_buffer(block_size))
+
+	return result
+
+func load_encrypted_image_data(color_table: Array) -> PoolByteArray:
+	var lzw_min_code_size: int = import_file.get_8()
+	var image_data: PoolByteArray = PoolByteArray([])
+	
+	# loading data sub-blocks
+	image_data = load_data_subblocks()
 	
 	var decompressed_image_data: PoolByteArray = lzw.decompress_lzw(
 			image_data,
@@ -125,25 +125,47 @@ func load_image_data(color_table: Array) -> PoolByteArray:
 	
 	return decompressed_image_data
 
-func load_interlaced_image_data(color_table: Array, w: int, h: int) -> Image:
-	var image_data: PoolByteArray = load_image_data(color_table)
+func decrypt_image_data(encrypted_img_data: PoolByteArray, color_table: Array, transparency_index: int) -> PoolByteArray:
+	var result: PoolByteArray = PoolByteArray([])
+	result.resize(encrypted_img_data.size() * 4) # because RGBA format
+	
+	for i in range(encrypted_img_data.size()):
+		var j: int = 4 * i
+		var color_index: int = encrypted_img_data[i]
+		result[j] = color_table[color_index][R]
+		result[j + 1] = color_table[color_index][G]
+		result[j + 2] = color_table[color_index][B]
+		# alpha channel
+		if color_index == transparency_index:
+			result[j + 3] = 0
+		else:
+			result[j + 3] = 255
+	
+	return result
+
+func load_interlaced_image_data(color_table: Array, w: int, h: int, transparency_index: int = -1) -> Image:
+	var image_data: PoolByteArray = load_encrypted_image_data(color_table)
 	
 	printerr('Interlaced images are not implemented yet.')
 	
 	return null
 
-func load_progressive_image_data(color_table: Array, w: int, h: int) -> Image:
+func load_progressive_image_data(color_table: Array, w: int, h: int, transparency_index: int = -1) -> Image:
 	var result_image: Image = Image.new()
 	
-	var image_data: PoolByteArray = load_image_data(color_table)
+	var encrypted_image_data: PoolByteArray = load_encrypted_image_data(
+			color_table)
+	
+	var decrypted_image_data: PoolByteArray = decrypt_image_data(
+			encrypted_image_data, color_table, transparency_index)
 	
 	result_image.create_from_data(w, h, 
 			false, Image.FORMAT_RGBA8,
-			add_alpha_channel(image_data))
+			decrypted_image_data)
 	
 	return result_image
 
-func handle_naked_image_descriptor() -> int:
+func handle_image_descriptor() -> int:
 	var x: int = little_endian.word_to_int(import_file.get_buffer(2))
 	var y: int = little_endian.word_to_int(import_file.get_buffer(2))
 	var w: int = little_endian.word_to_int(import_file.get_buffer(2))
@@ -172,14 +194,22 @@ func handle_naked_image_descriptor() -> int:
 	
 	var new_frame = Frame.new()
 	new_frame.image = image
-	# because Image Descriptor didn't have Graphics Control Extension before it
-	# with frame delay value, we want to set it as -1 because we want to tell
-	# end user that this frame has no delay.
-	new_frame.delay = -1
+	if last_graphic_control_extension != null:
+		new_frame.delay = last_graphic_control_extension.delay_time
+		new_frame.disposal_method = last_graphic_control_extension.disposal_method
+		last_graphic_control_extension = null
+	else:
+		# -1 because Image Descriptor didn't have Graphics Control Extension
+		# before it with frame delay value, so we want to set it as -1 because we
+		# want to tell end user that this frame has no delay.
+		new_frame.delay = -1
+		new_frame.disposal_method = DisposalMethod.RESTORE_TO_BACKGROUND
 	new_frame.x = x
 	new_frame.y = y
 	new_frame.w = w
 	new_frame.h = h
+	
+	frames.append(new_frame)
 	
 	return Error.OK
 
@@ -187,16 +217,25 @@ func handle_graphics_control_extension() -> int:
 	var block_size: int = import_file.get_8()
 	var packed_fields: int = import_file.get_8()
 	var delay_time: int = little_endian.word_to_int(import_file.get_buffer(2))
-	var delay_time_in_sec: float = float(delay_time) / 100.0
 	var transparent_color_index: int = import_file.get_8()
 	var block_terminator: int = import_file.get_8()
-	print(delay_time_in_sec)
+	
+	var graphic_control_extension: GraphicControlExtension = GraphicControlExtension.new()
+	graphic_control_extension.set_delay_time_from_export(delay_time)
+	graphic_control_extension.set_packed_fields(packed_fields)
+	graphic_control_extension.transparent_color_index = transparent_color_index
+	
+	last_graphic_control_extension = graphic_control_extension
+	
 	return Error.OK
 
 func handle_application_extension() -> int:
 	return Error.OK
 
 func handle_comment_extension() -> int:
+	return Error.OK
+
+func handle_plain_text_extension() -> int:
 	return Error.OK
 
 func handle_extension_introducer() -> int:
@@ -208,6 +247,8 @@ func handle_extension_introducer() -> int:
 			return handle_application_extension()
 		0xFE: # Comment Extension
 			return handle_comment_extension()
+		0x01: # Plain Text Extension
+			return handle_plain_text_extension()
 	return Error.OK
 
 func import() -> int:
@@ -238,7 +279,7 @@ func import() -> int:
 		var error: int
 		match block_intrudoction:
 			0x2C: # Image Descriptor
-				error = handle_naked_image_descriptor()
+				error = handle_image_descriptor()
 			0x21: # Extension Introducer
 				error = handle_extension_introducer()
 			0x3B: # Trailer
