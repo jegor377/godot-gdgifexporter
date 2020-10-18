@@ -31,9 +31,11 @@ var logical_screen_descriptor: PoolByteArray
 
 var import_file: File
 var frames: Array
+
 var background_color_index: int
 var pixel_aspect_ratio: int
 var global_color_table: Array
+var is_animated: bool = false
 
 var last_graphic_control_extension: GraphicControlExtension = null
 
@@ -41,6 +43,9 @@ var last_graphic_control_extension: GraphicControlExtension = null
 func _init(file: File):
 	import_file = file
 
+
+func skip_bytes(amount: int) -> void:
+	import_file.seek(import_file.get_position() + amount)
 
 func load_header() -> void:
 	header = import_file.get_buffer(6)
@@ -110,6 +115,13 @@ func load_data_subblocks() -> PoolByteArray:
 		result.append_array(import_file.get_buffer(block_size))
 
 	return result
+
+func skip_data_subblocks() -> void:
+	while true:
+		var block_size: int = import_file.get_8()
+		if block_size == 0:
+			break
+		import_file.seek(import_file.get_position() + block_size)
 
 func load_encrypted_image_data(color_table: Array) -> PoolByteArray:
 	var lzw_min_code_size: int = import_file.get_8()
@@ -187,10 +199,14 @@ func handle_image_descriptor() -> int:
 	else:
 		color_table = global_color_table
 	
+	var transparent_color_index: int = -1
+	if last_graphic_control_extension != null:
+		transparent_color_index = last_graphic_control_extension.transparent_color_index
+	
 	if is_interlace_flag_on:
-		image = load_interlaced_image_data(color_table, w, h)
+		image = load_interlaced_image_data(color_table, w, h, transparent_color_index)
 	else:
-		image = load_progressive_image_data(color_table, w, h)
+		image = load_progressive_image_data(color_table, w, h, transparent_color_index)
 	
 	var new_frame = Frame.new()
 	new_frame.image = image
@@ -215,6 +231,8 @@ func handle_image_descriptor() -> int:
 
 func handle_graphics_control_extension() -> int:
 	var block_size: int = import_file.get_8()
+	if block_size != 4:
+		printerr("Graphics extension block size isn't equal to 4!")
 	var packed_fields: int = import_file.get_8()
 	var delay_time: int = little_endian.word_to_int(import_file.get_buffer(2))
 	var transparent_color_index: int = import_file.get_8()
@@ -229,18 +247,37 @@ func handle_graphics_control_extension() -> int:
 	
 	return Error.OK
 
+func check_if_is_animation(application_identifier: String, appl_authentication_code: String, appl_data: PoolByteArray) -> void:
+	var proper_appl_data: PoolByteArray = PoolByteArray([1, 0, 0])
+	if application_identifier == 'NETSCAPE' and appl_authentication_code == '2.0' and appl_data == proper_appl_data:
+		is_animated = true
+
 func handle_application_extension() -> int:
+	var block_size: int = import_file.get_8()
+	if block_size != 11:
+		printerr("Application extension's block size isn't equal to 11!")
+	var application_identifier: String = import_file.get_buffer(8).get_string_from_ascii()
+	var appl_authentication_code: String = import_file.get_buffer(3).get_string_from_ascii()
+	var appl_data: PoolByteArray = load_data_subblocks()
+	check_if_is_animation(application_identifier,
+			appl_authentication_code, appl_data)
 	return Error.OK
 
 func handle_comment_extension() -> int:
+	var comment_label: int = import_file.get_8()
+	skip_data_subblocks()
+	var block_terminator = import_file.get_8()
 	return Error.OK
 
 func handle_plain_text_extension() -> int:
+	skip_bytes(13)
+	skip_data_subblocks()
+	var block_terminator = import_file.get_8()
 	return Error.OK
 
 func handle_extension_introducer() -> int:
-	var extension_label: int = import_file.get_8()
-	match extension_label:
+	var label: int = import_file.get_8()
+	match label:
 		0xF9: # Graphics Control Extension
 			return handle_graphics_control_extension()
 		0xFF: # Application Extension
@@ -275,9 +312,9 @@ func import() -> int:
 	
 	# LOADING FRAMES LOOP
 	while not import_file.eof_reached():
-		var block_intrudoction: int = import_file.get_8()
+		var label: int = import_file.get_8()
 		var error: int
-		match block_intrudoction:
+		match label:
 			0x2C: # Image Descriptor
 				error = handle_image_descriptor()
 			0x21: # Extension Introducer

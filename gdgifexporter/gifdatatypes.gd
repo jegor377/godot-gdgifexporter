@@ -54,39 +54,6 @@ class GraphicControlExtension:
 		
 		return result
 
-#class GraphicControlExtension:
-#	var extension_introducer: int = 0x21
-#	var graphic_control_label: int = 0xf9
-#
-#	var block_size: int = 4
-#	var packed_fields: int = 0b00001000
-#	var delay_time: int = 0
-#	var transparent_color_index: int = 0
-#
-#	func _init(_delay_time: int,
-#			use_transparency: bool = false,
-#			_transparent_color_index: int = 0):
-#		delay_time = _delay_time
-#		transparent_color_index = _transparent_color_index
-#		if use_transparency:
-#			packed_fields = 0b00001001
-#
-#	func to_bytes() -> PoolByteArray:
-#		var little_endian = preload('./little_endian.gd').new()
-#		var result: PoolByteArray = PoolByteArray([])
-#
-#		result.append(extension_introducer)
-#		result.append(graphic_control_label)
-#
-#		result.append(block_size)
-#		result.append(packed_fields)
-#		result += little_endian.int_to_word(delay_time)
-#		result.append(transparent_color_index)
-#
-#		result.append(0)
-#
-#		return result
-
 class ImageDescriptor:
 	var image_separator: int = 0x2c
 	var image_left_position: int = 0
