@@ -2,15 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-path="res://.import/girl.png-65a2715ad34f2d82dbc61833d2fc5569.stex"
+path="res://.import/transparent.png-b800a44ccbe42cf4a683bc725add0d51.stex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://girl.png"
-dest_files=[ "res://.import/girl.png-65a2715ad34f2d82dbc61833d2fc5569.stex" ]
+source_file="res://imgs/transparent.png"
+dest_files=[ "res://.import/transparent.png-b800a44ccbe42cf4a683bc725add0d51.stex" ]
 
 [params]
 

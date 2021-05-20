@@ -2,15 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-path="res://.import/half_transparent.png-9580b84f2f57e0c56dd1cb1bad20d83e.stex"
+path="res://.import/green_parrot.png-a4172bcfb5e0b1167ac302df314da4de.stex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://half_transparent.png"
-dest_files=[ "res://.import/half_transparent.png-9580b84f2f57e0c56dd1cb1bad20d83e.stex" ]
+source_file="res://imgs/green_parrot.png"
+dest_files=[ "res://.import/green_parrot.png-a4172bcfb5e0b1167ac302df314da4de.stex" ]
 
 [params]
 

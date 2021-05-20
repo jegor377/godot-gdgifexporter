@@ -2,15 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-path="res://.import/one_color.png-9ff64251a3622c6d771307e8ba2495aa.stex"
+path="res://.import/parrots.png-cd25385047a57cef4638daad6806d9ac.stex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://one_color.png"
-dest_files=[ "res://.import/one_color.png-9ff64251a3622c6d771307e8ba2495aa.stex" ]
+source_file="res://imgs/parrots.png"
+dest_files=[ "res://.import/parrots.png-cd25385047a57cef4638daad6806d9ac.stex" ]
 
 [params]
 
