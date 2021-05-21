@@ -2,15 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-path="res://.import/chocolade.png-133c20be04c5cef3a091e85c330c58d5.stex"
+path="res://.import/chocolate.png-71f0b3f21fa72c012e3cf4459c291ed4.stex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://imgs/chocolade.png"
-dest_files=[ "res://.import/chocolade.png-133c20be04c5cef3a091e85c330c58d5.stex" ]
+source_file="res://imgs/chocolate.png"
+dest_files=[ "res://.import/chocolate.png-71f0b3f21fa72c012e3cf4459c291ed4.stex" ]
 
 [params]
 
