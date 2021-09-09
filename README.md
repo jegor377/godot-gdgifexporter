@@ -7,9 +7,6 @@ This is gif exporter for godot made entirely using GDScript. This is based on [g
 	</a>
 </p>
 
-# Usage
-First, if you use code directly cloned from this repo, grab gdgifexporter directory into your project and preload gifexporter.gd file. Although, I suggest you using code from release package.
-
 ## Use examples
 ### Simple way
 ```gdscript
