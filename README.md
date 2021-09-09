@@ -7,8 +7,7 @@ This is gif exporter for godot made entirely using GDScript. This is based on [g
 	</a>
 </p>
 
-## Use examples
-### Simple way
+## Example
 ```gdscript
 extends Node2D
 
