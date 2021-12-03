@@ -33,11 +33,6 @@ func _ready():
 	var img_texture := ImageTexture.new()
 	img_texture.create_from_image(img1)
 	$CenterContainer/VBoxContainer/TextureRect.texture = img_texture
-	for i in 8:
-		var img := Image.new()
-		img.load("res://imgs/broken/broken_" + str(i + 1) + ".png")
-		img.convert(Image.FORMAT_RGBA8)
-		imgs.append(img)
 
 
 func _process(delta):
