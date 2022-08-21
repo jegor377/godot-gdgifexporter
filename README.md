@@ -26,7 +26,7 @@ func _ready():
 	img.convert(Image.FORMAT_RGBA8)
 
 	# initialize exporter object with width and height of gif canvas
-	var exporter = GIFExporter.new(img1.get_width(), img1.get_height())
+	var exporter = GIFExporter.new(img.get_width(), img.get_height())
 	# write image using median cut quantization method and with one second animation delay
 	exporter.add_frame(img, 1, MedianCutQuantization)
 
