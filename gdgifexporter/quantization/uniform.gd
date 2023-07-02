@@ -71,7 +71,7 @@ func to_color_array(colors: Array) -> Array:
 ## Quantizes to gif ready codes
 func quantize(image: Image) -> Array:
 	var colors: Array = generate_colors(256)
-	var tmp_image: Image = Image.new()
+	var tmp_image := Image.new()
 	tmp_image.copy_from(image)
 	tmp_image.resize(32, 32)
 	colors = enhance_colors(tmp_image, colors)

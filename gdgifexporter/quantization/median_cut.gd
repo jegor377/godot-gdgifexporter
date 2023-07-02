@@ -107,9 +107,9 @@ func remove_empty_buckets(buckets: Array) -> Array:
 	return buckets
 
 
-# quantizes to gif ready codes
+## Quantizes to gif ready codes
 func quantize(image: Image) -> Array:
-	var pixels = pixels_to_colors(image)
+	var pixels := pixels_to_colors(image)
 	if pixels.size() == 0:
 		return pixels
 

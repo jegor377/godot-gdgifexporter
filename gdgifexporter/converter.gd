@@ -36,11 +36,11 @@ func _convert(image: Image, colors: Array) -> PackedByteArray:
 	for i in colors.size():
 		lut.set_pixel(i, 0, Color8(colors[i][0], colors[i][1], colors[i][2]))
 	var lut_tex := ImageTexture.create_from_image(lut)
-	RenderingServer.material_set_param(mat_rid, "lut", lut_tex)
+	# Not sure why putting lut_tex is an array is needed, but without it, it doesn't work
+	RenderingServer.material_set_param(mat_rid, "lut", [lut_tex])
 	RenderingServer.canvas_item_set_material(ci_rid, mat_rid)
 
 	RenderingServer.viewport_set_update_mode(vp, RenderingServer.VIEWPORT_UPDATE_ONCE)
-#	RenderingServer.viewport_set_vflip(vp, true)
 	RenderingServer.force_draw(false)
 	image = RenderingServer.texture_2d_get(RenderingServer.viewport_get_texture(vp))
 
