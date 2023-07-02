@@ -74,4 +74,4 @@ func _on_Button_pressed():
 		if export_thread.is_active():
 			export_thread.wait_to_finish()
 		export_thread = Thread.new()
-		export_thread.start(self, "export_thread_method", {})
+		export_thread.start(Callable(self, "export_thread_method").bind({}))

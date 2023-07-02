@@ -1,11 +1,11 @@
-extends Reference
+extends RefCounted
 
 var lsbbitpacker = preload("./lsbbitpacker.gd")
 var lsbbitunpacker = preload("./lsbbitunpacker.gd")
 
 
 class CodeEntry:
-	var sequence: PoolByteArray
+	var sequence: PackedByteArray
 	var raw_array: Array
 
 	func _init(_sequence):
@@ -60,7 +60,7 @@ func get_bits_number_for(value: int) -> int:
 	return int(ceil(log2(value + 1)))
 
 
-func initialize_color_code_table(colors: PoolByteArray) -> CodeTable:
+func initialize_color_code_table(colors: PackedByteArray) -> CodeTable:
 	var result_code_table: CodeTable = CodeTable.new()
 	for color_id in colors:
 		# warning-ignore:return_value_discarded
@@ -76,7 +76,7 @@ func initialize_color_code_table(colors: PoolByteArray) -> CodeTable:
 # http://www.matthewflickinger.com/lab/whatsinagif/lzw_image_data.asp
 
 
-func compress_lzw(image: PoolByteArray, colors: PoolByteArray) -> Array:
+func compress_lzw(image: PackedByteArray, colors: PackedByteArray) -> Array:
 	# Initialize code table
 	var code_table: CodeTable = initialize_color_code_table(colors)
 	# Clear Code index is 2**<code size>
@@ -87,7 +87,7 @@ func compress_lzw(image: PoolByteArray, colors: PoolByteArray) -> Array:
 	# colors down.
 	var last_color_index: int = colors.size() - 1
 	var clear_code_index: int = pow(2, get_bits_number_for(last_color_index))
-	var index_stream: PoolByteArray = image
+	var index_stream: PackedByteArray = image
 	var current_code_size: int = get_bits_number_for(clear_code_index)
 	var binary_code_stream = lsbbitpacker.LSBLZWBitPacker.new()
 
@@ -148,9 +148,9 @@ func compress_lzw(image: PoolByteArray, colors: PoolByteArray) -> Array:
 
 
 # gdlint: ignore=max-line-length
-func decompress_lzw(code_stream_data: PoolByteArray, min_code_size: int, colors: PoolByteArray) -> PoolByteArray:
+func decompress_lzw(code_stream_data: PackedByteArray, min_code_size: int, colors: PackedByteArray) -> PackedByteArray:
 	var code_table: CodeTable = initialize_color_code_table(colors)
-	var index_stream: PoolByteArray = PoolByteArray([])
+	var index_stream: PackedByteArray = PackedByteArray([])
 	var binary_code_stream = lsbbitunpacker.LSBLZWBitUnpacker.new(code_stream_data)
 	var current_code_size: int = min_code_size + 1
 	var clear_code_index: int = pow(2, min_code_size)

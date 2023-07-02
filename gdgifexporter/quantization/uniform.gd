@@ -1,4 +1,4 @@
-extends Reference
+extends RefCounted
 
 var converter = preload("../converter.gd").new()
 var transparency := false
@@ -30,7 +30,7 @@ func generate_colors(colors_count: int) -> Array:
 	return colors
 
 
-func find_nearest_color(palette_color: Vector3, image_data: PoolByteArray) -> Array:
+func find_nearest_color(palette_color: Vector3, image_data: PackedByteArray) -> Array:
 	var nearest_color = null
 	var nearest_alpha = null
 	for i in range(0, image_data.size(), 4):
@@ -70,19 +70,19 @@ func to_color_array(colors: Array) -> Array:
 
 # quantizes to gif ready codes
 func quantize(image: Image) -> Array:
-	image.lock()
+	false # image.lock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	var colors: Array = generate_colors(256)
 	var tmp_image: Image = Image.new()
 	tmp_image.copy_from(image)
 	tmp_image.resize(32, 32)
-	tmp_image.lock()
+	false # tmp_image.lock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	colors = enhance_colors(tmp_image, colors)
-	tmp_image.unlock()
+	false # tmp_image.unlock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
-	image.unlock()
+	false # image.unlock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	colors = to_color_array(colors)
 
-	var data: PoolByteArray = converter.get_similar_indexed_datas(image, colors)
+	var data: PackedByteArray = converter.get_similar_indexed_datas(image, colors)
 
 	return [data, colors, transparency]
