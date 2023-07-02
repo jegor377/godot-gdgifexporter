@@ -5,7 +5,7 @@ var transparency := false
 
 
 func how_many_divisions(colors_count: int) -> int:
-	return int(ceil(pow(colors_count, 1.0 / 4.0)))
+	return int(ceili(pow(colors_count, 1.0 / 4.0)))
 
 
 func generate_colors(colors_count: int) -> Array:
@@ -50,7 +50,7 @@ func find_nearest_color(palette_color: Vector3, image_data: PackedByteArray) -> 
 	return [nearest_color, nearest_alpha]
 
 
-# moves every color from palette colors to the nearest found color in image
+## Moves every color from palette colors to the nearest found color in image
 func enhance_colors(image: Image, palette_colors: Array) -> Array:
 	var data := image.get_data()
 

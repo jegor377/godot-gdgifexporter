@@ -2,9 +2,9 @@ extends RefCounted
 
 enum Error { OK = 0, EMPTY_IMAGE = 1, BAD_IMAGE_FORMAT = 2 }
 
-var little_endian = preload("./little_endian.gd").new()
-var lzw = preload("./gif-lzw/lzw.gd").new()
-var converter = preload("./converter.gd")
+var little_endian := preload("./little_endian.gd").new()
+var lzw := preload("./gif-lzw/lzw.gd").new()
+var converter := preload("./converter.gd")
 
 var last_color_table := []
 var last_transparency_index := -1
@@ -142,7 +142,7 @@ func add_frame(image: Image, frame_delay: float, quantizator: Script) -> int:
 	if found_color_table.size() <= 256:  # we don't need to quantize the image.
 		# try to find transparency color index.
 		transparency_color_index = find_transparency_color_index(found_color_table)
-		# if didn't found transparency color index but there is atleast one
+		# if didn't find transparency color index but there is at least one
 		# place for this color then add it artificially.
 		if transparency_color_index == -1 and found_color_table.size() <= 255:
 			found_color_table[[0, 0, 0, 0]] = found_color_table.size()
@@ -178,7 +178,7 @@ func add_frame(image: Image, frame_delay: float, quantizator: Script) -> int:
 	return Error.OK
 
 
-# adds frame with last color informations
+## Adds frame with last color information
 func add_frame_with_lci(image: Image, frame_delay: float) -> int:
 	# check if image is of good format
 	if image.get_format() != Image.FORMAT_RGBA8:
