@@ -1,6 +1,6 @@
 extends RefCounted
 
-var converter = preload("../converter.gd").new()
+var converter := preload("../converter.gd").new()
 var transparency := false
 
 
@@ -34,7 +34,7 @@ func find_nearest_color(palette_color: Vector3, image_data: PackedByteArray) -> 
 	var nearest_color = null
 	var nearest_alpha = null
 	for i in range(0, image_data.size(), 4):
-		var color = Vector3(image_data[i], image_data[i + 1], image_data[i + 2])
+		var color := Vector3(image_data[i], image_data[i + 1], image_data[i + 2])
 		# detect transparency
 		if image_data[3] == 0:
 			transparency = true
@@ -68,19 +68,13 @@ func to_color_array(colors: Array) -> Array:
 	return result
 
 
-# quantizes to gif ready codes
+## Quantizes to gif ready codes
 func quantize(image: Image) -> Array:
-	false # image.lock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
-
 	var colors: Array = generate_colors(256)
 	var tmp_image: Image = Image.new()
 	tmp_image.copy_from(image)
 	tmp_image.resize(32, 32)
-	false # tmp_image.lock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	colors = enhance_colors(tmp_image, colors)
-	false # tmp_image.unlock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
-
-	false # image.unlock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	colors = to_color_array(colors)
 
 	var data: PackedByteArray = converter.get_similar_indexed_datas(image, colors)

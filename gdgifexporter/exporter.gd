@@ -62,7 +62,6 @@ func add_application_ext(app_iden: String, app_auth_code: String, _data: Array) 
 
 # finds the image color table. Stops if the size gets larger than 256.
 func find_color_table(image: Image) -> Dictionary:
-	false # image.lock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	var result: Dictionary = {}
 	var image_data: PackedByteArray = image.get_data()
 
@@ -77,8 +76,6 @@ func find_color_table(image: Image) -> Dictionary:
 			result[color] = result.size()
 		if result.size() > 256:
 			break
-
-	false # image.unlock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	return result
 
 
@@ -90,7 +87,6 @@ func find_transparency_color_index(color_table: Dictionary) -> int:
 
 
 func colors_to_codes(img: Image, col_palette: Dictionary, transp_color_index: int) -> PackedByteArray:
-	false # img.lock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	var image_data: PackedByteArray = img.get_data()
 	var result: PackedByteArray = PackedByteArray([])
 
@@ -106,7 +102,6 @@ func colors_to_codes(img: Image, col_palette: Dictionary, transp_color_index: in
 			result.append(0)
 			push_warning("colors_to_codes: color not found! [%d, %d, %d, %d]" % color)
 
-	false # img.unlock() # TODOConverter40, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	return result
 
 
@@ -120,7 +115,7 @@ func make_proper_size(color_table: Array) -> Array:
 
 
 func calc_delay_time(frame_delay: float) -> int:
-	return int(ceil(frame_delay / 0.01))
+	return int(ceili(frame_delay / 0.01))
 
 
 func color_table_to_indexes(colors: Array) -> PackedByteArray:
