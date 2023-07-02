@@ -17,6 +17,5 @@ config/icon="res://icon.png"
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
+driver/threads/thread_model=2
 environment/defaults/default_environment="res://default_env.tres"
-threads/thread_model=2
