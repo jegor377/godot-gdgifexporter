@@ -1,21 +1,21 @@
-extends Reference
+extends RefCounted
 
-var lsbbitpacker = preload("./lsbbitpacker.gd")
-var lsbbitunpacker = preload("./lsbbitunpacker.gd")
+var lsbbitpacker := preload("./lsbbitpacker.gd")
+var lsbbitunpacker := preload("./lsbbitunpacker.gd")
 
 
 class CodeEntry:
-	var sequence: PoolByteArray
+	var sequence: PackedByteArray
 	var raw_array: Array
 
 	func _init(_sequence):
 		raw_array = _sequence
 		sequence = _sequence
 
-	func add(other):
+	func add(other: CodeEntry) -> CodeEntry:
 		return CodeEntry.new(self.raw_array + other.raw_array)
 
-	func to_string():
+	func _to_string():
 		var result: String = ""
 		for element in self.sequence:
 			result += str(element) + ", "
@@ -39,10 +39,10 @@ class CodeTable:
 	func has(entry) -> bool:
 		return self.find(entry) != -1
 
-	func get(index) -> CodeEntry:
+	func get_entry(index: int) -> CodeEntry:
 		return self.entries.get(index, null)
 
-	func to_string() -> String:
+	func _to_string() -> String:
 		var result: String = "CodeTable:\n"
 		for id in self.entries:
 			result += str(id) + ": " + self.entries[id].to_string() + "\n"
@@ -57,10 +57,10 @@ func log2(value: float) -> float:
 func get_bits_number_for(value: int) -> int:
 	if value == 0:
 		return 1
-	return int(ceil(log2(value + 1)))
+	return int(ceili(log2(value + 1)))
 
 
-func initialize_color_code_table(colors: PoolByteArray) -> CodeTable:
+func initialize_color_code_table(colors: PackedByteArray) -> CodeTable:
 	var result_code_table: CodeTable = CodeTable.new()
 	for color_id in colors:
 		# warning-ignore:return_value_discarded
@@ -76,7 +76,7 @@ func initialize_color_code_table(colors: PoolByteArray) -> CodeTable:
 # http://www.matthewflickinger.com/lab/whatsinagif/lzw_image_data.asp
 
 
-func compress_lzw(image: PoolByteArray, colors: PoolByteArray) -> Array:
+func compress_lzw(image: PackedByteArray, colors: PackedByteArray) -> Array:
 	# Initialize code table
 	var code_table: CodeTable = initialize_color_code_table(colors)
 	# Clear Code index is 2**<code size>
@@ -87,23 +87,23 @@ func compress_lzw(image: PoolByteArray, colors: PoolByteArray) -> Array:
 	# colors down.
 	var last_color_index: int = colors.size() - 1
 	var clear_code_index: int = pow(2, get_bits_number_for(last_color_index))
-	var index_stream: PoolByteArray = image
+	var index_stream: PackedByteArray = image
 	var current_code_size: int = get_bits_number_for(clear_code_index)
-	var binary_code_stream = lsbbitpacker.LSBLZWBitPacker.new()
+	var binary_code_stream := lsbbitpacker.LSBLZWBitPacker.new()
 
 	# initialize with Clear Code
 	binary_code_stream.write_bits(clear_code_index, current_code_size)
 
 	# Read first index from index stream.
-	var index_buffer: CodeEntry = CodeEntry.new([index_stream[0]])
+	var index_buffer := CodeEntry.new([index_stream[0]])
 	var data_index: int = 1
 	# <LOOP POINT>
 	while data_index < index_stream.size():
 		# Get the next index from the index stream.
-		var k: CodeEntry = CodeEntry.new([index_stream[data_index]])
+		var k := CodeEntry.new([index_stream[data_index]])
 		data_index += 1
 		# Is index buffer + k in our code table?
-		var new_index_buffer: CodeEntry = index_buffer.add(k)
+		var new_index_buffer := index_buffer.add(k)
 		if code_table.has(new_index_buffer):  # if YES
 			# Add k to the end of the index buffer
 			index_buffer = new_index_buffer
@@ -148,9 +148,11 @@ func compress_lzw(image: PoolByteArray, colors: PoolByteArray) -> Array:
 
 
 # gdlint: ignore=max-line-length
-func decompress_lzw(code_stream_data: PoolByteArray, min_code_size: int, colors: PoolByteArray) -> PoolByteArray:
+func decompress_lzw(
+	code_stream_data: PackedByteArray, min_code_size: int, colors: PackedByteArray
+) -> PackedByteArray:
 	var code_table: CodeTable = initialize_color_code_table(colors)
-	var index_stream: PoolByteArray = PoolByteArray([])
+	var index_stream := PackedByteArray([])
 	var binary_code_stream = lsbbitunpacker.LSBLZWBitUnpacker.new(code_stream_data)
 	var current_code_size: int = min_code_size + 1
 	var clear_code_index: int = pow(2, min_code_size)
@@ -164,7 +166,7 @@ func decompress_lzw(code_stream_data: PoolByteArray, min_code_size: int, colors:
 	# let CODE be the first code in the code stream
 	var code: int = binary_code_stream.read_bits(current_code_size)
 	# output {CODE} to index stream
-	index_stream.append_array(code_table.get(code).sequence)
+	index_stream.append_array(code_table.get_entry(code).sequence)
 	# set PREVCODE = CODE
 	var prevcode: int = code
 	# <LOOP POINT>
@@ -179,7 +181,7 @@ func decompress_lzw(code_stream_data: PoolByteArray, min_code_size: int, colors:
 		elif code == clear_code_index + 1:  # Stop when detected EOI Code.
 			break
 		# is CODE in the code table?
-		var code_entry: CodeEntry = code_table.get(code)
+		var code_entry: CodeEntry = code_table.get_entry(code)
 		if code_entry != null:  # if YES
 			# output {CODE} to index stream
 			index_stream.append_array(code_entry.sequence)
@@ -187,12 +189,12 @@ func decompress_lzw(code_stream_data: PoolByteArray, min_code_size: int, colors:
 			var k: CodeEntry = CodeEntry.new([code_entry.sequence[0]])
 			# warning-ignore:return_value_discarded
 			# add {PREVCODE} + k to the code table
-			code_table.add(code_table.get(prevcode).add(k))
+			code_table.add(code_table.get_entry(prevcode).add(k))
 			# set PREVCODE = CODE
 			prevcode = code
 		else:  # if NO
 			# let k be the first index of {PREVCODE}
-			var prevcode_entry: CodeEntry = code_table.get(prevcode)
+			var prevcode_entry: CodeEntry = code_table.get_entry(prevcode)
 			var k: CodeEntry = CodeEntry.new([prevcode_entry.sequence[0]])
 			# output {PREVCODE} + k to index stream
 			index_stream.append_array(prevcode_entry.add(k).sequence)
