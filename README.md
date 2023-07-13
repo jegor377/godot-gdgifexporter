@@ -56,7 +56,7 @@ Some methods give error codes. These are used error codes and their meaning:
 - BAD_IMAGE_FORMAT = 2 (You are using different image format than FORMAT_RGBA8)
 
 # Contributors
-If you want to contribute to this code then go ahead! :) Huge thanks to Kinwailo and novhack. This project wouldn't work without their help! :D
+If you want to contribute to this code then go ahead! :) Huge thanks to Kinwailo and novhack. This project wouldn't work without their help! Moreover the update to Godot 4.x wouldn't be possible without the contribution of OverloadedOrama, so huge respect for him! :D
 
 # Used external libs
 - [godot-gif-lzw](https://github.com/jegor377/godot-gif-lzw)
