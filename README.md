@@ -33,9 +33,8 @@ func _ready():
 	exporter.add_frame(img, 1, MedianCutQuantization)
 
 	# when you have exported all frames of animation you, then you can save data into file
-	var file: File = File.new()
 	# open new file with write privlige
-	file.open('user://result.gif', File.WRITE)
+	var file: FileAccess = FileAccess.open('user://result.gif', FileAccess.WRITE)
 	# save data stream into file
 	file.store_buffer(exporter.export_file_data())
 	# close the file
